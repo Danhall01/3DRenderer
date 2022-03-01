@@ -1,33 +1,100 @@
 #include <Windows.h>
-#include <atomic>
-#include <thread>
+
+#include "RenderContext.h"
+
+#define _CRTDBG_MAP_ALLOC
+#include <stdlib.h>
+#include <crtdbg.h>
+
 #include <chrono>
 using namespace std::chrono_literals;
 constexpr std::chrono::nanoseconds timeLock(16ms);
 
-void End(int state)
+//Gloabal variables for keybinds
+static bool up;
+static bool down;
+static bool forward;
+static bool backward;
+static bool left;
+static bool right;
+//Keybind manager (Should come from the game engine)
+void keyEvents(MSG& msg)
 {
-	//Do cleanup
-
-	exit(state);
-}
-
-
-//Thread Data
-std::atomic_bool exitThread = false;
-
-//Shared event data
-std::atomic_bool quit = false;
-
-void EventManager() 
-{
-	while (!exitThread)
+	//Event inputs
+	switch (msg.message)
 	{
-		//Windows API
+	// ========= KEYDOWN =========
+	case WM_KEYDOWN:
+		switch (msg.wParam)
+		{
+		case VK_ESCAPE:
+			PostQuitMessage(0);
+			return;
 
+		case 0x41: //A
+			left = true;
+			break;
+
+		case 0x44: //D
+			right = true;
+			break;
+
+		case 0x57: //W
+			forward = true;
+			break;
+
+		case 0x53: //S
+			backward = true;
+			break;
+
+		case VK_LCONTROL: //LCTRL
+			down = true;
+			break;
+
+		case VK_SPACE: //Spacebar
+			up = true;
+			break;
+		}
+		break;
+
+
+		// ========= KEYUP =========
+	case WM_KEYUP:
+		switch (msg.wParam)
+		{
+		case 0x41: //A
+			left = false;
+			break;
+
+		case 0x44: //D
+			right = false;
+			break;
+
+		case 0x57: //W
+			forward = false;
+			break;
+
+		case 0x53: //S
+			backward = false;
+			break;
+
+		case VK_LCONTROL: //LCTRL
+			down = false;
+			break;
+
+		case VK_SPACE: //Spacebar
+			up = false;
+			break;
+		}
+		break;
+
+		// ========= MISC EVENTS =========
+	default:
+		break;
 	}
 	return;
 }
+
 
 
 int APIENTRY wWinMain(
@@ -36,20 +103,21 @@ int APIENTRY wWinMain(
 	_In_     LPWSTR      lpCmdLine,
 	_In_     int         nCmdShow)
 {
+	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
+
+
 	using clock = std::chrono::high_resolution_clock;
 	std::chrono::nanoseconds elapsedTime(0ns);
 	auto startTime = clock::now();
 
-	//Create Thread
-	std::thread handle(EventManager);
+	RenderContext renderer;
+	wWindow hWindow = renderer.CreateWWindow(hInstance, nCmdShow, keyEvents);
 
-	
-	while (!quit)
+	while (hWindow.EventManager() != WM_QUIT)
 	{
 		auto DTime = clock::now() - startTime;
 		startTime = clock::now();
 		elapsedTime += std::chrono::duration_cast<std::chrono::nanoseconds>(DTime);
-
 
 		//Tick based system
 		while (elapsedTime >= timeLock)
@@ -60,17 +128,6 @@ int APIENTRY wWinMain(
 			//Catch up the loop
 			elapsedTime -= timeLock;
 		}
-
-		//Do D3D11 stuff
-		//Send the shared data from the event handler as input
-
-		
-
 	}
-	//Cleanup threadwork
-	exitThread = true;
-	handle.join();
-
-
 	return 0;
 }

@@ -1,23 +1,33 @@
 #include "Wwindow.h"
-//Requirements
-LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+#include "RenderContext.h"
+#include <iostream>
+
+
+//The event handlers
+UINT wWindow::EventManager()
+{
+	MSG msg = {};
+	if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE) > 0)
+	{
+		if (IsDialogMessage(m_window, &msg))
+		{
+			m_eventFunction(msg);
+		}
+	}
+	return msg.message;
+}
+void DefaultEvent(MSG& msg)
 {
 	//Event inputs
-	switch (message)
+	switch (msg.message)
 	{
-	case WM_DESTROY:
-	case WM_CLOSE:
-		PostQuitMessage(0);
-		return 0;
-
-
-		//Key input handler
+	//Key input handler
 	case WM_KEYDOWN:
-		switch (wParam)
+		switch (msg.wParam)
 		{
 		case VK_ESCAPE:
 			PostQuitMessage(0);
-			return 0;
+			return;
 		}
 		break;
 
@@ -28,40 +38,63 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
 	default:
 		break;
 	}
-
-	return DefWindowProc(hWnd, message, wParam, lParam);
+	return;
 }
+LRESULT CALLBACK defaultWndProc(HWND aHWnd, UINT aMessage, WPARAM aWParam, LPARAM aLParam)
+{
+	switch (aMessage)
+	{
+	case WM_DESTROY: //Cross
+	case WM_CLOSE: //Close window
+		PostQuitMessage(0);
+		return 0;
+
+	default:
+		return DefWindowProc(aHWnd, aMessage, aWParam, aLParam);
+	}
+	return 0;
+}
+
 
 //The class
-wWindow::wWindow(HINSTANCE instance, UINT width, UINT height, int nCmdShow)
+wWindow::wWindow(LPCWSTR windowName, HINSTANCE instance, UINT width, UINT height, int nCmdShow, std::function<void(MSG&)> EventFunction)
 {
-	if (!SetupWindow(instance, width, height, nCmdShow))
+	//init variables
+	m_windowWidth = width;
+	m_windowHeight = height;
+	if (EventFunction == nullptr) 
 	{
-		std::cerr << "Failed to create Window" << std::endl;
-		exit(1);
+		m_eventFunction = DefaultEvent;
 	}
-}
+	else
+	{
+		m_eventFunction = EventFunction;
+	}
 
-bool wWindow::SetupWindow(HINSTANCE instance, UINT width, UINT height, int nCmdShow)
-{
-	const wchar_t CLASS_NAME[] = L"Test Window Class";
+	//Init window
+	const wchar_t CLASS_NAME[] = L"Window Class";
 	WNDCLASS wc = { };
 
-	wc.lpfnWndProc = WindowProc;
+	wc.lpfnWndProc = defaultWndProc;
 	wc.hInstance = instance;
 	wc.lpszClassName = CLASS_NAME;
 	wc.style = CS_OWNDC;
 
 
 	RegisterClass(&wc);
-	window = CreateWindowEx(0, CLASS_NAME, L"Direct3D 11 Triangle", WS_OVERLAPPEDWINDOW,
-		CW_USEDEFAULT, 0, width, height, nullptr, nullptr, instance, nullptr);
-	if (window == nullptr)
+	m_window = CreateWindowEx(0, CLASS_NAME, windowName, WS_OVERLAPPEDWINDOW,
+		CW_USEDEFAULT, 0, m_windowWidth, m_windowHeight, nullptr, nullptr, instance, nullptr);
+	if (m_window == nullptr)
 	{
-		std::cerr << "HWND was nullptr, last error: " << GetLastError() << std::endl;
-		return false;
+		std::cerr << "Failed to create Window" << std::endl;
+		exit(1);
 	}
 
-	ShowWindow(window, nCmdShow);
-	return true;
+	ShowWindow(m_window, nCmdShow);
 }
+wWindow::~wWindow(){}
+
+const HWND& wWindow::GetWindow() const { return m_window; }
+const UINT wWindow::GetWindowHeight() const { return m_windowHeight; }
+const UINT wWindow::GetWindowWidth() const { return m_windowWidth; }
+const float wWindow::GetWindowRatio() {	return (float)(m_windowWidth) / (float)(m_windowHeight); }
