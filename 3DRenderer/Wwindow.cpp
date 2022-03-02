@@ -94,7 +94,7 @@ wWindow::wWindow(LPCWSTR windowName, HINSTANCE instance, UINT width, UINT height
 }
 wWindow::~wWindow(){}
 
-const HWND& wWindow::GetWindow() const { return m_window; }
+const HWND& wWindow::GetData() const { return m_window; }
 const UINT wWindow::GetWindowHeight() const { return m_windowHeight; }
 const UINT wWindow::GetWindowWidth() const { return m_windowWidth; }
 const float wWindow::GetWindowRatio() {	return (float)(m_windowWidth) / (float)(m_windowHeight); }
