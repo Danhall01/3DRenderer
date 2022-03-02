@@ -126,19 +126,25 @@ int APIENTRY wWinMain(
 
 	RenderContext renderer;
 	wWindow hWindow = renderer.CreateWWindow(hInstance, nCmdShow, keyEvents);
-	Camera cam = renderer.CreateDXCam();
-
-
+	renderer.CreateDXCam();
+	
+	float speedMultiplier = 1;
 	while (hWindow.EventManager() != WM_QUIT)
 	{
 		auto DTime = clock::now() - startTime;
 		startTime = clock::now();
 		elapsedTime += std::chrono::duration_cast<std::chrono::nanoseconds>(DTime);
 
-		//Tick based system
+		//Time based system
 		while (elapsedTime >= timeLock)
 		{
 			//Update game logic
+			renderer.AddDXCamPos( //Move the camera
+				speedMultiplier * right - speedMultiplier * left,
+				speedMultiplier * up - speedMultiplier * down,
+				speedMultiplier * forward - speedMultiplier * backward
+			);
+			
 
 			//Catch up the loop
 			elapsedTime -= timeLock;

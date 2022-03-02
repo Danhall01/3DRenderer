@@ -10,6 +10,8 @@ public:
 	Camera(float x, float y, float z, float fovDegrees, float aspectRatio, float nearZ, float farZ);
 	~Camera() = default;
 
+	Camera operator=(const Camera& otherCam);
+
 	const DirectX::XMMATRIX& GetViewMatrix() const;
 	const DirectX::XMMATRIX& GetProjectionMatrix() const;
 
@@ -40,13 +42,13 @@ private:
 	void UpdateViewMatrix();
 
 private:
-	DirectX::XMVECTOR _PositionVec;
-	DirectX::XMVECTOR _RotationVec;
-	DirectX::XMMATRIX _ViewMatrix;
-	DirectX::XMMATRIX _ProjectionMatrix;
+	DirectX::XMVECTOR m_PositionVec;
+	DirectX::XMVECTOR m_RotationVec;
+	DirectX::XMMATRIX m_ViewMatrix;
+	DirectX::XMMATRIX m_ProjectionMatrix;
 
-	DirectX::XMFLOAT3 _FPosition;
-	DirectX::XMFLOAT3 _FRotation;
+	DirectX::XMFLOAT3 m_FPosition;
+	DirectX::XMFLOAT3 m_FRotation;
 
 
 	const DirectX::XMVECTOR DEFAULT_FORWARD_VECTOR = DirectX::XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);

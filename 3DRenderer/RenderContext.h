@@ -12,15 +12,15 @@ public:
 	~RenderContext();
 
 	wWindow CreateWWindow(HINSTANCE instance, int nCmdShow, std::function<void(MSG&)> eventFunction);
-	Camera CreateDXCam();
-	Camera CreateDXCam(const DirectX::XMVECTOR& pos, float fovDegrees, float aspectRatio, float nearZ, float farZ);
-	Camera CreateDXCam(float x, float y, float z, float fovDegrees, float aspectRatio, float nearZ, float farZ);
+	void CreateDXCam();
+	void CreateDXCam(const DirectX::XMVECTOR& pos, float fovDegrees, float aspectRatio, float nearZ, float farZ);
+	void CreateDXCam(float x, float y, float z, float fovDegrees, float aspectRatio, float nearZ, float farZ);
 
-
-
-private:
-	
+	const Camera& GetDXCamera() const;
+	void AddDXCamPos(float x, float y, float z);
 
 private:
-	//std::vector<Model> m_modelVec;
+
+private:
+	Camera m_dxCam;
 };
