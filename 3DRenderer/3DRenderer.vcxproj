@@ -150,7 +150,7 @@
     <ClCompile Include="wWindow.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <Text Include="README.txt" />
+    <Text Include="README.md" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Camera.h" />

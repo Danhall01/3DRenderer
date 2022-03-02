@@ -38,7 +38,7 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <Text Include="README.txt" />
+    <Text Include="README.md" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="wWindow.h">

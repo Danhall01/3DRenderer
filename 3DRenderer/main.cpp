@@ -17,7 +17,72 @@ static bool forward;
 static bool backward;
 static bool left;
 static bool right;
+
 //Keybind manager (Should come from the game engine)
+void keyDown(WPARAM key)
+{
+	//Assume key is always something
+	switch (key)
+	{
+	case VK_ESCAPE:
+		PostQuitMessage(0);
+		return;
+
+	case 0x41: //A
+		left = true;
+		break;
+
+	case 0x44: //D
+		right = true;
+		break;
+
+	case 0x57: //W
+		forward = true;
+		break;
+
+	case 0x53: //S
+		backward = true;
+		break;
+
+	case VK_CONTROL: //CTRL
+		down = true;
+		break;
+
+	case VK_SPACE: //Spacebar
+		up = true;
+		break;
+	}
+}
+void keyUp(WPARAM key)
+{
+	//Assume key is always something
+	switch (key)
+	{
+	case 0x41: //A
+		left = false;
+		break;
+
+	case 0x44: //D
+		right = false;
+		break;
+
+	case 0x57: //W
+		forward = false;
+		break;
+
+	case 0x53: //S
+		backward = false;
+		break;
+
+	case VK_LCONTROL: //LCTRL
+		down = false;
+		break;
+
+	case VK_SPACE: //Spacebar
+		up = false;
+		break;
+	}
+}
 void keyEvents(MSG& msg)
 {
 	//Event inputs
@@ -25,76 +90,25 @@ void keyEvents(MSG& msg)
 	{
 	// ========= KEYDOWN =========
 	case WM_KEYDOWN:
-		switch (msg.wParam)
-		{
-		case VK_ESCAPE:
-			PostQuitMessage(0);
-			return;
-
-		case 0x41: //A
-			left = true;
-			break;
-
-		case 0x44: //D
-			right = true;
-			break;
-
-		case 0x57: //W
-			forward = true;
-			break;
-
-		case 0x53: //S
-			backward = true;
-			break;
-
-		case VK_LCONTROL: //LCTRL
-			down = true;
-			break;
-
-		case VK_SPACE: //Spacebar
-			up = true;
-			break;
-		}
+		keyDown(msg.wParam);
 		break;
 
 
 		// ========= KEYUP =========
 	case WM_KEYUP:
-		switch (msg.wParam)
-		{
-		case 0x41: //A
-			left = false;
-			break;
-
-		case 0x44: //D
-			right = false;
-			break;
-
-		case 0x57: //W
-			forward = false;
-			break;
-
-		case 0x53: //S
-			backward = false;
-			break;
-
-		case VK_LCONTROL: //LCTRL
-			down = false;
-			break;
-
-		case VK_SPACE: //Spacebar
-			up = false;
-			break;
-		}
+		keyUp(msg.wParam);
 		break;
 
 		// ========= MISC EVENTS =========
+		// Get normalized vector from mouse position
+		// Reset mouse position to center
+		// Move camera in that direction
+
 	default:
 		break;
 	}
 	return;
 }
-
 
 
 int APIENTRY wWinMain(
@@ -112,6 +126,8 @@ int APIENTRY wWinMain(
 
 	RenderContext renderer;
 	wWindow hWindow = renderer.CreateWWindow(hInstance, nCmdShow, keyEvents);
+	Camera cam = renderer.CreateDXCam();
+
 
 	while (hWindow.EventManager() != WM_QUIT)
 	{
@@ -123,7 +139,6 @@ int APIENTRY wWinMain(
 		while (elapsedTime >= timeLock)
 		{
 			//Update game logic
-
 
 			//Catch up the loop
 			elapsedTime -= timeLock;

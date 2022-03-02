@@ -1,11 +1,7 @@
 #pragma once
 #include "wWindow.h"
-#include "Model.h"
+#include "Camera.h"
 
-
-#include <vector>
-#include <string>
-#include <wrl/client.h>
 
 
 
@@ -16,16 +12,11 @@ public:
 	~RenderContext();
 
 	wWindow CreateWWindow(HINSTANCE instance, int nCmdShow, std::function<void(MSG&)> eventFunction);
+	Camera CreateDXCam();
+	Camera CreateDXCam(const DirectX::XMVECTOR& pos, float fovDegrees, float aspectRatio, float nearZ, float farZ);
+	Camera CreateDXCam(float x, float y, float z, float fovDegrees, float aspectRatio, float nearZ, float farZ);
 
 
-	//void AddModel(std::string objPath);
-	//void RemoveModel(int index);
-	//void ClearModel();
-
-	//bool SetCBuffer(UINT buffer, void* change);
-
-	//void Render();
-	//void Clear();
 
 private:
 	
