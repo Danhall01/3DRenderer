@@ -1,7 +1,11 @@
-Made by: Daniel Häll
+Made by: Daniel HÃ¤ll
+
 Date: 2022-01-31
+
 Email: Danne.01@hotmail.com
+
 Discord: Dan_#0001
+
 
 ****
 In this project I will be creating a 3D renderer, this will be part of a bigger Game Engine found on my Github.
