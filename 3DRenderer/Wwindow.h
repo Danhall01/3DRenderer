@@ -1,4 +1,5 @@
-#pragma once
+#ifndef WWINDOW_HPP
+#define WWINDOW_HPP
 #include <Windows.h>
 #include <functional>
 
@@ -30,3 +31,4 @@ private:
 
 	std::function<void(MSG&)> m_eventFunction;
 };
+#endif

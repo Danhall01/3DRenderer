@@ -1,65 +1,74 @@
-//#pragma once
-//#include <vector>
-//#include <DirectXMath.h>
-//
-//
-//struct Vertex 
-//{//Weakness, does not manage Colors
-//	float position[4];
-//	float normal[4];
-//	float UV[2];
-//	
-//	float padding[2];
-//};
-//struct Mesh
-//{
-//	unsigned int materialIndex;
-//	unsigned int textureIndex;
-//	unsigned int vertexIndex;
-//	
-//	std::vector<int> indicies;
-//};
-//struct Material
-//{
-//	float ka;
-//	float kd;
-//	float ks;
-//	float padding;
-//};
-////structs for CBuffers (In case any come up)
-//
-class Model
+#pragma once
+#include <vector>
+#include <DirectXMath.h>
+
+
+struct Vertex 
 {
-//public:
-//	Model();
-//	~Model();
-//
-//	const Material& GetMaterial(unsigned int index) const;
-//	const Mesh& GetMesh(unsigned int index, unsigned int& startPos) const;
-//	const Vertex*& GetVertexData() const;
-//	const DirectX::XMMATRIX& GetTransformMatrix() const;
-//
-//	void AddVerticies(std::vector<Vertex> newVerticies, unsigned int* objectSize);
-//	void SetTransformMatrix(DirectX::XMMATRIX transform);
-//	
-//	void AddMesh(std::vector<int> indicies, unsigned int materialNr, unsigned int textureNr, unsigned int startIndex);
-//	void AddMesh(Mesh newMesh, unsigned int materialNr);
-//
-//	void AddMaterial(float ka, float kd, float ds);
-//	void AddMaterial(Material material);
-//
-//
-//private:
-//
-//
-//
-//private:
-//	std::vector<Mesh> _MeshVec;
-//	std::vector<Material> _MaterialVec;
-//
-//	std::vector<int> _ObjectNr; // [a, a+b=c, c+d=e, ...]
-//
-//	std::vector<Vertex> _VertexVec;
-//	DirectX::XMMATRIX _TransformMatrix;
+	float position[4];
+	float normal[4];
+	float UV[2];
+	
+	float padding[2];
 };
+
+
+
+class Mesh
+{
+private:
+	struct SubMesh
+	{
+		unsigned int m_startIndex;
+		unsigned int m_indicesCount;
+	};
+public:
+	Mesh();
+	Mesh(std::vector<Vertex>& vertices, std::vector<unsigned int>& indices);
+	~Mesh();
+
+	void SetVertices(std::vector<Vertex> vertices);
+	void AddVertices(std::vector<Vertex> newVertices);
+
+	void SetIndices(std::vector<unsigned int> indices);	
+	void AddIndices(std::vector<unsigned int> newIndices);
+
+	void AddSubMesh(unsigned int startIndex, unsigned int indicesCount);
+	void ClearSubmeshes();
+
+	void Clear();
+
+private:
+
+
+
+private:
+	std::vector<SubMesh> m_subMeshVec;
+	std::vector<Vertex> m_verticies;
+	std::vector<unsigned int> m_indices;
+};
+
+//class Mesh : public Mesh
+//{
+//public:
 //
+//
+//private:
+//
+//
+//private:
+//
+//	
+//};
+//class Skeleton : public Mesh
+//{
+//public:
+//
+//
+//private:
+//
+//
+//private:
+//
+//
+//};

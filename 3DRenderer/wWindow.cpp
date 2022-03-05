@@ -1,6 +1,4 @@
 #include "Wwindow.h"
-#include "RenderContext.h"
-#include <iostream>
 
 
 //The event handlers
@@ -86,7 +84,6 @@ wWindow::wWindow(LPCWSTR windowName, HINSTANCE instance, UINT width, UINT height
 		CW_USEDEFAULT, 0, m_windowWidth, m_windowHeight, nullptr, nullptr, instance, nullptr);
 	if (m_window == nullptr)
 	{
-		std::cerr << "Failed to create Window" << std::endl;
 		exit(1);
 	}
 

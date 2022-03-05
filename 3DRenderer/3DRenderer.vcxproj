@@ -145,7 +145,7 @@
     <ClCompile Include="Light.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Model.cpp" />
-    <ClCompile Include="RenderContext.cpp" />
+    <ClCompile Include="Renderer.cpp" />
     <ClCompile Include="Texture.cpp" />
     <ClCompile Include="wWindow.cpp" />
   </ItemGroup>
@@ -156,7 +156,7 @@
     <ClInclude Include="Camera.h" />
     <ClInclude Include="Light.h" />
     <ClInclude Include="Model.h" />
-    <ClInclude Include="RenderContext.h" />
+    <ClInclude Include="Renderer.h" />
     <ClInclude Include="Settings.h" />
     <ClInclude Include="Texture.h" />
     <ClInclude Include="wWindow.h" />

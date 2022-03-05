@@ -1,6 +1,6 @@
 #include <Windows.h>
 
-#include "RenderContext.h"
+#include "Renderer.h"
 
 #define _CRTDBG_MAP_ALLOC
 #include <stdlib.h>
@@ -124,11 +124,27 @@ int APIENTRY wWinMain(
 	std::chrono::nanoseconds elapsedTime(0ns);
 	auto startTime = clock::now();
 
-	RenderContext renderer;
+	Renderer renderer;
 	wWindow hWindow = renderer.CreateWWindow(hInstance, nCmdShow, keyEvents);
-	renderer.CreateDXCam();
 	
-	float speedMultiplier = 1;
+
+	//Hardcoded test
+	std::vector<Vertex> vList;
+	vList.push_back({ {-1.0f,  1.0f, 0}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f} }); //Top left
+	vList.push_back({ { 1.0f,  1.0f, 0}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f} }); //Top right
+	vList.push_back({ {-1.0f, -1.0f, 0}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f} }); //Bottom left
+	vList.push_back({ { 1.0f, -1.0f, 0}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f} }); //Bottom right
+	std::vector<unsigned int> indices = {
+	0, 1, 3,
+	0, 3, 2
+	};
+
+	//This will mostly happen internally with the readObj function
+	Mesh& m = renderer.AddMesh(vList, indices);
+	m.AddSubMesh(0,6);
+
+
+	float speedMultiplier = 0.43f;
 	while (hWindow.EventManager() != WM_QUIT)
 	{
 		auto DTime = clock::now() - startTime;
@@ -145,6 +161,14 @@ int APIENTRY wWinMain(
 				speedMultiplier * forward - speedMultiplier * backward
 			);
 			
+			//Mesh => Verticies
+			//		Indicies
+			//		Pipeline Selection
+
+			//Submesh => startIndex (From the indicies)
+			//			Amount of Indicies used
+			//			TextureNR
+
 
 			//Catch up the loop
 			elapsedTime -= timeLock;
