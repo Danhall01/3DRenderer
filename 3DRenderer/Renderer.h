@@ -1,13 +1,18 @@
 #pragma once
+//  Helper classes
 #include "wWindow.h"
 #include "Camera.h"
-#include "Model.h"
-
+#include "Assets.h"
+// The API
+#include <d3d11.h>
+// Other libraries
 #include <vector>
+#include <string>
+#include <wrl/client.h>
+using namespace Microsoft;
 
-#define FREE(D3D11ptr) if(D3D11ptr != nullptr) { D3D11ptr->Release(); }
 
-
+constexpr bool _Debug_ = 0;
 class Renderer
 {
 public:
@@ -25,19 +30,55 @@ public:
 	const Camera& GetDXCamera() const;
 	void AddDXCamPos(float x, float y, float z);
 
-	void DXCleanUp();
+	// bool Build(HWND window) ...
+	bool Build(wWindow window);
+
 
 	// ===== RENDERING FUNCTIONS
-	Mesh& AddMesh(std::vector<Vertex>& vertices, std::vector<unsigned int>& indices);
-	const Mesh& GetMesh(int index) const;
+	//Input manager
+	bool ParseObj(std::vector<std::string> pathFiles);
 
-
-	void DefaultPipeline();
-	void SkeletonPipeline();
-
+	//Renderer manager
+	void Draw();
+	void ClearBuffer();
 private:
+	// Hresult manager
+	bool infoDump();
+
+	// Rendering Helper Functions
+	bool UpdateVertexBuffer();
+	bool UpdateIndiceBuffer();
+
+	// Build functions
+	bool BuildSwapChain(wWindow window);
+	bool BuildRenderTargetView();
+	bool BuildViewport();
+	bool BuildShaders();
+	bool BuildInputLayout();
+	bool BuildVertexBuffer();
+	bool BuildConstantBuffers();
 
 private:
 	Camera m_dxCam;
-	std::vector<Mesh> m_models;
+	Assets m_assets;
+	HRESULT hr;
+
+private: //D3D11 VARIABLES
+	WRL::ComPtr<ID3D11Device>           m_device;
+	WRL::ComPtr<ID3D11DeviceContext>    m_dContext;
+
+	WRL::ComPtr<IDXGISwapChain>         m_swapChain;
+	WRL::ComPtr<ID3D11RenderTargetView> m_rtv;
+	WRL::ComPtr<ID3D11InputLayout>      m_inputLayout;
+	WRL::ComPtr<ID3D11Buffer>           m_vertexBuffer;
+
+	D3D11_VIEWPORT                      m_viewport;
+	//Shaders
+	WRL::ComPtr<ID3D11VertexShader>     m_vertexShader;
+	WRL::ComPtr<ID3D11PixelShader>      m_pixelShader;
+	WRL::ComPtr<ID3D11GeometryShader>   m_geometryShader;
+
+	//Buffers
+	WRL::ComPtr<ID3D11Buffer>           m_vertexCBuffer;
+
 };

@@ -11,7 +11,7 @@ public:
 	wWindow(LPCWSTR windowName, HINSTANCE instance, UINT width, UINT height, int nCmdShow, std::function<void(MSG&)> EventFunction);
 	~wWindow();
 
-	const HWND& GetData() const;
+	const HWND& Data() const;
 
 	const UINT GetWindowHeight() const;
 	const UINT GetWindowWidth() const;

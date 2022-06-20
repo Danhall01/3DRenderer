@@ -55,7 +55,8 @@ LRESULT CALLBACK defaultWndProc(HWND aHWnd, UINT aMessage, WPARAM aWParam, LPARA
 
 
 //The class
-wWindow::wWindow(LPCWSTR windowName, HINSTANCE instance, UINT width, UINT height, int nCmdShow, std::function<void(MSG&)> EventFunction)
+wWindow::wWindow(LPCWSTR windowName, HINSTANCE instance, UINT width, UINT height, 
+	int nCmdShow, std::function<void(MSG&)> EventFunction)
 {
 	//init variables
 	m_windowWidth = width;
@@ -91,7 +92,7 @@ wWindow::wWindow(LPCWSTR windowName, HINSTANCE instance, UINT width, UINT height
 }
 wWindow::~wWindow(){}
 
-const HWND& wWindow::GetData() const { return m_window; }
+const HWND& wWindow::Data() const { return m_window; }
 const UINT wWindow::GetWindowHeight() const { return m_windowHeight; }
 const UINT wWindow::GetWindowWidth() const { return m_windowWidth; }
 const float wWindow::GetWindowRatio() {	return (float)(m_windowWidth) / (float)(m_windowHeight); }

@@ -1,11 +1,14 @@
 #include <Windows.h>
 
+//D3D11
 #include "Renderer.h"
 
+//Debug
 #define _CRTDBG_MAP_ALLOC
 #include <stdlib.h>
 #include <crtdbg.h>
 
+//Clock
 #include <chrono>
 using namespace std::chrono_literals;
 constexpr std::chrono::nanoseconds timeLock(16ms);
@@ -118,33 +121,22 @@ int APIENTRY wWinMain(
 	_In_     int         nCmdShow)
 {
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
+	Renderer renderer;
+	wWindow hWindow = renderer.CreateWWindow(hInstance, nCmdShow, keyEvents);
+	if (!renderer.Build(hWindow.Data())) //Indicates failure to build
+		return 1;
 
+	std::vector<std::string> inFiles = {
+		"../External Resources/SceneObjects/",
+		"Rectangle.obj"
+	};
+	renderer.ParseObj(inFiles);
+
+	float speedMultiplier = 0.13f;
 
 	using clock = std::chrono::high_resolution_clock;
 	std::chrono::nanoseconds elapsedTime(0ns);
 	auto startTime = clock::now();
-
-	Renderer renderer;
-	wWindow hWindow = renderer.CreateWWindow(hInstance, nCmdShow, keyEvents);
-	
-
-	//Hardcoded test
-	std::vector<Vertex> vList;
-	vList.push_back({ {-1.0f,  1.0f, 0}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f} }); //Top left
-	vList.push_back({ { 1.0f,  1.0f, 0}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f} }); //Top right
-	vList.push_back({ {-1.0f, -1.0f, 0}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f} }); //Bottom left
-	vList.push_back({ { 1.0f, -1.0f, 0}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f} }); //Bottom right
-	std::vector<unsigned int> indices = {
-	0, 1, 3,
-	0, 3, 2
-	};
-
-	//This will mostly happen internally with the readObj function
-	Mesh& m = renderer.AddMesh(vList, indices);
-	m.AddSubMesh(0,6);
-
-
-	float speedMultiplier = 0.43f;
 	while (hWindow.EventManager() != WM_QUIT)
 	{
 		auto DTime = clock::now() - startTime;
@@ -155,20 +147,17 @@ int APIENTRY wWinMain(
 		while (elapsedTime >= timeLock)
 		{
 			//Update game logic
-			renderer.AddDXCamPos( //Move the camera
-				speedMultiplier * right - speedMultiplier * left,
-				speedMultiplier * up - speedMultiplier * down,
-				speedMultiplier * forward - speedMultiplier * backward
-			);
+			if (right || left || up || down || forward || backward)
+				renderer.AddDXCamPos( //Move the camera
+					speedMultiplier * right - speedMultiplier * left,
+					speedMultiplier * up - speedMultiplier * down,
+					speedMultiplier * forward - speedMultiplier * backward
+				);
 			
-			//Mesh => Verticies
-			//		Indicies
-			//		Pipeline Selection
 
-			//Submesh => startIndex (From the indicies)
-			//			Amount of Indicies used
-			//			TextureNR
 
+			//Render
+			renderer.Draw();
 
 			//Catch up the loop
 			elapsedTime -= timeLock;

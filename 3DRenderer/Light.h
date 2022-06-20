@@ -3,24 +3,20 @@
 //#include <array>
 //#include <DirectXMath.h>
 //
-//struct LightData
-//{
-//	float Position[3];
-//	float Color[3];
-//	float shininess;
-//};
 //
 //class Light
 //{
 //public:
+//  Light();
+//  Light(std::array<float,3> pos, std::array<float, 3> clr, float shininess);
 //	Light(std::array<float,3> pos, std::array<float, 3> clr, float shininess, DirectX::XMMATRIX transform);
 //	~Light();
 //
-//	const LightData& GetLightData() const;
+//	const Light& GetLightData() const;
 //
-//	void UpdateTransformMatrix(DirectX::XMMATRIX transform);
-//	void ChangeColor(float clr[3]);
-//	void ChangeShininess(float shi);
+//	void SetTransformMatrix(DirectX::XMMATRIX transform);
+//	void SetColor(float clr[3]);
+//	void SetShininess(float shi);
 //
 //private:
 //	//FRÅGA

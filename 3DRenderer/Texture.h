@@ -1,40 +1,42 @@
-//#pragma once
-//#include <cstdint>
-//#include <d3d11.h>
-//#include <string>
-//#define STB_IMAGE_IMPLEMENTATION
-//#include "stb_image.h"
-//
-//enum flag
-//{
-//	test = 0,		// 0000
-//	test2 = 1,		// 0001
-//	test3 = 1 << 1, // 0010
-//	test4 = 1 << 2, // 0100
-//	test5 = 1 << 3, // 1000
-//};
-//
-//
-//class Texture
-//{
-//public:
-//	Texture(std::string filepath, flag flags);
-//	~Texture();
-//
-//	const uint8_t*& GetImage();
-//	const ID3D11ShaderResourceView*& GetSRV();
-//	const ID3D11SamplerState*& GetSamplerState();
-//
-//	void SetImage(std::string filepath);
-//
-//
-//private:
-//	void SetupSRV(flag flags);
-//	void SetupSamplerState(flag flags);
-//
-//private:
-//	uint8_t* img;
-//	ID3D11ShaderResourceView* _SRV;
-//	ID3D11SamplerState* _SampleState;
-//};
-//
+#pragma once
+#include <cstdint>
+#include <d3d11.h>
+#include <string>
+#include <array>
+
+class Texture
+{
+public:
+	Texture();
+	Texture(std::string id);
+	~Texture();
+
+	bool Empty() const;
+	void Clear();
+
+	void SetSpecularHighlight(float ns);
+	void SetAmbientClr(std::array<float, 3> xyz);
+	void SetDiffuseClr(std::array<float, 3> xyz);
+	void SetSpecularClr(std::array<float, 3> xyz);
+	void SetEmissiveCoef(std::array<float, 3> xyz);
+	void SetOpticalDensity(float ni);
+	void SetDissolve(float factor);
+
+	void SetId(std::string id);
+	std::string GetId();
+
+
+private:
+
+private:
+	std::string m_id;
+
+	float m_Ns;
+	std::array<float, 3> m_Ka;
+	std::array<float, 3> m_Kd;
+	std::array<float, 3> m_Ks;
+	std::array<float, 3> m_Ke;
+	float m_Ni;
+	float m_d;
+};
+
