@@ -2,12 +2,16 @@
 
 Mesh::Mesh()
 {
+	m_indiceCount = 0;
+	m_matrix = {};
 	m_verticeStartIndex = 0;
 	m_indiceStartIndex = 0;
 }
 Mesh::Mesh(std::string id)
 {
 	this->SetId(id);
+	m_indiceCount = 0;
+	m_matrix = {};
 	m_verticeStartIndex = 0;
 	m_indiceStartIndex = 0;
 }
@@ -27,6 +31,7 @@ void Mesh::Clear()
 	m_verticeStartIndex = 0;
 	m_indiceStartIndex = 0;
 	m_indiceCount = 0;
+	m_matrix = {};
 }
 
 void Mesh::SetIndiceCount(unsigned int count)
@@ -81,4 +86,14 @@ unsigned int Mesh::GetIndiceStartIndex() const
 unsigned int Mesh::GetVerticeStartIndex() const
 {
 	return m_verticeStartIndex;
+}
+
+
+void Mesh::SetMatrix(const dx::XMMATRIX& matrix)
+{
+	m_matrix = matrix;
+}
+const dx::XMMATRIX& Mesh::GetMatrix() const
+{
+	return m_matrix;
 }

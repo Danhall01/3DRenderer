@@ -8,13 +8,13 @@ class wWindow
 {
 public:
 	wWindow() = delete;
-	wWindow(LPCWSTR windowName, HINSTANCE instance, UINT width, UINT height, int nCmdShow, std::function<void(MSG&)> EventFunction);
+	wWindow(LPCWSTR windowName, HINSTANCE instance, float width, float height, int nCmdShow, std::function<void(MSG&)> EventFunction);
 	~wWindow();
 
 	const HWND& Data() const;
 
-	const UINT GetWindowHeight() const;
-	const UINT GetWindowWidth() const;
+	const float GetWindowHeight() const;
+	const float GetWindowWidth() const;
 	const float GetWindowRatio();
 
 
@@ -26,8 +26,8 @@ private:
 	HWND m_window;
 
 	//bool m_fullscreen;
-	UINT m_windowHeight;
-	UINT m_windowWidth;
+	float m_windowHeight;
+	float m_windowWidth;
 
 	std::function<void(MSG&)> m_eventFunction;
 };

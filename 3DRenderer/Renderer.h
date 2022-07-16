@@ -6,13 +6,14 @@
 // The API
 #include <d3d11.h>
 // Other libraries
+#include <unordered_map>
 #include <vector>
 #include <string>
 #include <wrl/client.h>
 using namespace Microsoft;
 
+#include "Structures.h"
 
-constexpr bool _Debug_ = 0;
 class Renderer
 {
 public:
@@ -32,53 +33,72 @@ public:
 
 	// bool Build(HWND window) ...
 	bool Build(wWindow window);
-
+	// bool BuildShaderAndLayout(wWindow window, UINT assetPack, unsigned char flag); // Flag identifies which layout and shader to use together
 
 	// ===== RENDERING FUNCTIONS
 	//Input manager
-	bool ParseObj(std::vector<std::string> pathFiles);
+	bool ParseObj(std::vector<std::string> pathFiles, unsigned char flag);
+	    // Returns true if mesh is found, else false
+	bool SetMeshMatrix(std::string id,
+		const dx::XMMATRIX& matrix
+	);
+
+
 
 	//Renderer manager
-	void Draw();
+	void Draw(std::vector<std::string> drawTargets);
+	void Draw(std::vector< std::pair<std::string, dx::XMMATRIX> > drawTargets);
 	void ClearBuffer();
 private:
 	// Hresult manager
-	bool infoDump();
+	inline void infoDump(unsigned line);
 
-	// Rendering Helper Functions
-	bool UpdateVertexBuffer();
-	bool UpdateIndiceBuffer();
 
 	// Build functions
 	bool BuildSwapChain(wWindow window);
 	bool BuildRenderTargetView();
-	bool BuildViewport();
-	bool BuildShaders();
-	bool BuildInputLayout();
-	bool BuildVertexBuffer();
-	bool BuildConstantBuffers();
+	bool BuildViewport(wWindow window);
+	bool BuildShadersDefault(ID3DBlob*& out_shaderBlob);
+	bool BuildInputLayoutDefault(ID3DBlob*& relativeSBlob);
 
+	// Index / Vertex buffer functions
+	bool BuildVertexBuffer();
+	bool BuildIndexBuffer();
+	bool UpdateVertexBuffer(Assets& asset);
+	bool UpdateIndexBuffer(Assets& asset);
+
+	// Mesh Helper Functions
+	bool BuildVertexConstantBuffer();
+	bool UpdateVertexConstantBuffer(const Mesh& mesh);
+	bool UpdateVertexConstantBuffer(dx::XMMATRIX& matrix);
 private:
+	HRESULT m_hr;
 	Camera m_dxCam;
-	Assets m_assets;
-	HRESULT hr;
+	// unsigned char: ob0000 for default, see README.md
+	// Assets: The assets used for a specific flag
+	std::unordered_map<unsigned char, Assets> m_assets;
+	
 
 private: //D3D11 VARIABLES
-	WRL::ComPtr<ID3D11Device>           m_device;
-	WRL::ComPtr<ID3D11DeviceContext>    m_dContext;
+	WRL::ComPtr<ID3D11Device>                   m_device;
+	WRL::ComPtr<ID3D11DeviceContext>            m_dContext;
 
-	WRL::ComPtr<IDXGISwapChain>         m_swapChain;
-	WRL::ComPtr<ID3D11RenderTargetView> m_rtv;
-	WRL::ComPtr<ID3D11InputLayout>      m_inputLayout;
-	WRL::ComPtr<ID3D11Buffer>           m_vertexBuffer;
+	WRL::ComPtr<IDXGISwapChain>                 m_swapChain;
+	WRL::ComPtr<ID3D11RenderTargetView>         m_rtv;
+	WRL::ComPtr<ID3D11DepthStencilView>         m_depthStencilView;
 
-	D3D11_VIEWPORT                      m_viewport;
+	WRL::ComPtr<ID3D11Buffer>                   m_indexBuffer;
+	WRL::ComPtr<ID3D11Buffer>                   m_vertexBuffer;
+
+	D3D11_VIEWPORT                              m_viewport;
 	//Shaders
-	WRL::ComPtr<ID3D11VertexShader>     m_vertexShader;
-	WRL::ComPtr<ID3D11PixelShader>      m_pixelShader;
-	WRL::ComPtr<ID3D11GeometryShader>   m_geometryShader;
+	std::vector<shaderSet>                      m_shaders;
+	std::vector<WRL::ComPtr<ID3D11InputLayout>> m_inputLayout;
 
-	//Buffers
-	WRL::ComPtr<ID3D11Buffer>           m_vertexCBuffer;
-
+	// Tips and tricks
+	// Source: https://developer.nvidia.com/content/constant-buffers-without-constant-pain-0
+	// 1. Do not swap between constant buffers
+	// 2. Constant buffer that gets updated should only affect one step in the pipeline
+	// 3. Do not read from the Map[MAP_WRITE_DISCARD] data
+	WRL::ComPtr<ID3D11Buffer>                   m_vConstBuffer;
 };

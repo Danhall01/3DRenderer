@@ -20,6 +20,7 @@ static bool forward;
 static bool backward;
 static bool left;
 static bool right;
+//static float mouseMovement[2][3];
 
 //Keybind manager (Should come from the game engine)
 void keyDown(WPARAM key)
@@ -123,14 +124,23 @@ int APIENTRY wWinMain(
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 	Renderer renderer;
 	wWindow hWindow = renderer.CreateWWindow(hInstance, nCmdShow, keyEvents);
-	if (!renderer.Build(hWindow.Data())) //Indicates failure to build
+	if (!renderer.Build(hWindow)) //Indicates failure to build
 		return 1;
 
 	std::vector<std::string> inFiles = {
 		"../External Resources/SceneObjects/",
 		"Rectangle.obj"
 	};
-	renderer.ParseObj(inFiles);
+	renderer.ParseObj(inFiles, 0);
+
+	// Create the render list
+	std::vector<std::pair<std::string, DirectX::XMMATRIX>> drawable;
+	
+	//std::string rect = "Rectangle";
+	//RSTMatrix matrix = {};
+	
+	//drawable.push_back({rect, matrix});
+
 
 	float speedMultiplier = 0.13f;
 
@@ -157,7 +167,7 @@ int APIENTRY wWinMain(
 
 
 			//Render
-			renderer.Draw();
+			renderer.Draw(drawable);
 
 			//Catch up the loop
 			elapsedTime -= timeLock;

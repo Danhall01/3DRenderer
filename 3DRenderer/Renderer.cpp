@@ -3,7 +3,10 @@
 
 #include <d3dcompiler.h>
 #include <DirectXMath.h>
+#define BYTEWIDTH_MAX D3D11_REQ_CONSTANT_BUFFER_ELEMENT_COUNT
 
+#include <assert.h>
+#include <comdef.h>
 
 
 //Window helper
@@ -44,7 +47,7 @@ Renderer::~Renderer()
 #ifdef _DEBUG
 	//WRL::ComPtr<ID3D11Debug> debug;
 	//m_device.As(&debug);
-	//hr = debug.Get()->ReportLiveDeviceObjects(D3D11_RLDO_FLAGS::D3D11_RLDO_SUMMARY);
+	//m_hr = debug.Get()->ReportLiveDeviceObjects(D3D11_RLDO_FLAGS::D3D11_RLDO_SUMMARY);
 #endif
 
 }
@@ -52,16 +55,22 @@ Renderer::~Renderer()
 bool Renderer::Build(wWindow window)
 {
 	// Set up the renderer
+	ID3DBlob* shaderBlob = {};
+	if (!BuildSwapChain(window)) { infoDump((unsigned)__LINE__); return false; }
+	if (!BuildRenderTargetView()) { infoDump((unsigned)__LINE__); return false; }
+	if (!BuildViewport(window)) { infoDump((unsigned)__LINE__); return false; }
+	
+	if (!BuildShadersDefault(shaderBlob)) { infoDump((unsigned)__LINE__); return false; }
+	if (!BuildInputLayoutDefault(shaderBlob)) { infoDump((unsigned)__LINE__); return false; }
 
+	if (!BuildVertexConstantBuffer()) { infoDump((unsigned)__LINE__); return false; }
 
-	if (!BuildSwapChain(window)) { return false; }
-	if (!BuildRenderTargetView()) { return false; }
-	if (!BuildViewport()) { return false; }
-	if (!BuildShaders()) { return false; }
-	if (!BuildInputLayout()) { return false; }
-	if (!BuildVertexBuffer()) { return false; }
-	if (!BuildConstantBuffers()) { return false; }
-	return infoDump();
+	if (!BuildVertexBuffer()) { infoDump((unsigned)__LINE__); return false; }
+	if (!BuildIndexBuffer()) { infoDump((unsigned)__LINE__); return false; }
+
+	shaderBlob->Release();
+
+	return true;
 }
 
 bool Renderer::BuildSwapChain(wWindow window)
@@ -69,8 +78,8 @@ bool Renderer::BuildSwapChain(wWindow window)
 	/// Swapchain
 	DXGI_MODE_DESC displayDesc = {};
 	displayDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-	displayDesc.Height = window.GetWindowHeight();
-	displayDesc.Width = window.GetWindowWidth();
+	displayDesc.Height = (UINT)window.GetWindowHeight();
+	displayDesc.Width = (UINT)window.GetWindowWidth();
 	displayDesc.RefreshRate.Numerator = 144; // Hertz
 	displayDesc.RefreshRate.Denominator = 1;
 	displayDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
@@ -87,7 +96,7 @@ bool Renderer::BuildSwapChain(wWindow window)
 	swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 	swapChainDesc.BufferCount = 1;
 	swapChainDesc.OutputWindow = window.Data();
-	swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+	swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
 	swapChainDesc.Windowed = true;
 	swapChainDesc.Flags = 0;
 
@@ -98,12 +107,12 @@ bool Renderer::BuildSwapChain(wWindow window)
 #ifdef _DEBUG
 	flags = D3D11_CREATE_DEVICE_DEBUG;
 #endif
-	hr = D3D11CreateDeviceAndSwapChain(
+	m_hr = D3D11CreateDeviceAndSwapChain(
 		NULL,
 		D3D_DRIVER_TYPE_HARDWARE,
 		NULL,
 		flags,
-		featureLevel, sizeof(featureLevel) / sizeof(*featureLevel),
+		featureLevel, (sizeof(featureLevel) / sizeof(D3D_FEATURE_LEVEL)),
 		D3D11_SDK_VERSION,
 		&swapChainDesc,
 		m_swapChain.GetAddressOf(),
@@ -111,155 +120,372 @@ bool Renderer::BuildSwapChain(wWindow window)
 		NULL, // Gives which of feature levels is supported
 		m_dContext.GetAddressOf()
 	);
-	return infoDump();
+	if (FAILED(m_hr))
+		return false;
+	return true;
 }
 bool Renderer::BuildRenderTargetView()
 {
 	/// Render Target View
-	return false;
+	ID3D11Resource* backbuffer = nullptr;
+	m_hr = m_swapChain->GetBuffer(0, __uuidof(ID3D11Resource), reinterpret_cast<void**>(&backbuffer));
+	if (FAILED(m_hr))
+		return false;
+
+	m_device->CreateRenderTargetView(
+		backbuffer,
+		NULL, //Mipmap lvl 0
+		&m_rtv
+	);
+	if (FAILED(m_hr))
+		return false;
+
+	backbuffer->Release();
+	return true;
 }
-bool Renderer::BuildViewport()
+bool Renderer::BuildViewport(wWindow window)
 {
 	/// Viewport
+	m_viewport.Height    = window.GetWindowHeight();
+	m_viewport.Width     = window.GetWindowWidth();
+	m_viewport.MaxDepth  = 0;
+	m_viewport.MinDepth  = 1;
+	m_viewport.TopLeftX  = 0; // o --
+	m_viewport.TopLeftY  = 0; // |
 
-	return false;
+	return true;
 }
-bool Renderer::BuildShaders()
+bool Renderer::BuildShadersDefault(ID3DBlob*& out_shaderBlob)
 {
-	/// Shaders
+	shaderSet shaders = {};
+	shaders.geometryShader = nullptr;
+	shaders.hullShader = nullptr;
+	shaders.domainShader = nullptr;
+#if _DEBUG
+	wchar_t pxPath[] = L"../x64/Debug/PixelShader.cso";
+	wchar_t vsPath[] = L"../x64/Debug/VertexShader.cso";
+#else
+	wchar_t pxPath[] = L"../x64/Release/PixelShader.sco";
+	wchar_t vsPath[] = L"../x64/Release/VertexShader.cso";
+#endif
 
-	return false;
+	// Pixel Shader
+	m_hr = D3DReadFileToBlob(pxPath, &out_shaderBlob);
+	if (FAILED(m_hr))
+		return false;
+	m_hr = m_device->CreatePixelShader(
+		out_shaderBlob->GetBufferPointer(),
+		out_shaderBlob->GetBufferSize(),
+		NULL,
+		shaders.pixelShader.GetAddressOf()
+	);
+	if (FAILED(m_hr))
+		return false;
+
+	//Vertex Shader
+	D3DReadFileToBlob(vsPath, &out_shaderBlob);
+	if (FAILED(m_hr))
+		return false;
+	m_hr = m_device->CreateVertexShader(
+		out_shaderBlob->GetBufferPointer(),
+		out_shaderBlob->GetBufferSize(),
+		NULL,
+		shaders.vertexShader.GetAddressOf()
+	);
+	if (FAILED(m_hr))
+		return false;
+
+	m_shaders.push_back(shaders);
+	return true;
 }
-bool Renderer::BuildInputLayout()
+bool Renderer::BuildInputLayoutDefault(ID3DBlob*& relativeSBlob)
 {
 	/// Inputlayout
-
-	return false;
+	ID3D11InputLayout* defaultLayout;
+	D3D11_INPUT_ELEMENT_DESC vShaderInput[] = {
+		{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0},
+		{"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0},
+		{"UV", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0}
+	};
+	m_hr = m_device->CreateInputLayout(
+		vShaderInput, (UINT)(sizeof(vShaderInput) / sizeof(*vShaderInput)),
+		relativeSBlob->GetBufferPointer(), relativeSBlob->GetBufferSize(),
+		&defaultLayout
+	);
+	if (FAILED(m_hr))
+		return false;
+	
+	m_inputLayout.push_back(defaultLayout);
+	defaultLayout->Release();
+	return true;
 }
+
+bool Renderer::BuildVertexConstantBuffer()
+{
+	/// Vertex CBuffer
+	D3D11_BUFFER_DESC Desc = {};
+	Desc.Usage = D3D11_USAGE_DYNAMIC;
+	Desc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	Desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	Desc.ByteWidth = sizeof(WVPMatrix);
+	Desc.StructureByteStride = 0;
+	Desc.MiscFlags = 0;
+
+	WVPMatrix matrix = {
+		dx::XMMatrixIdentity(),
+		m_dxCam.GetViewMatrix(),
+		m_dxCam.GetProjectionMatrix()
+	};
+	D3D11_SUBRESOURCE_DATA subData = {};
+	subData.pSysMem = &matrix;
+
+	m_hr = m_device->CreateBuffer(
+		&Desc,
+		&subData,
+		m_vertexBuffer.GetAddressOf()
+	);
+	return SUCCEEDED(m_hr);
+}
+bool Renderer::UpdateVertexConstantBuffer(const Mesh& mesh)
+{
+	WVPMatrix wvpMatrix = {
+		mesh.GetMatrix(),
+		m_dxCam.GetViewMatrix(),
+		m_dxCam.GetProjectionMatrix()
+	};
+
+	D3D11_MAPPED_SUBRESOURCE mResource = {};
+
+	m_hr = m_dContext->Map(m_vConstBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mResource);
+	if (FAILED(m_hr))
+		return false;
+	memcpy(
+		mResource.pData,
+		&wvpMatrix,
+		sizeof(WVPMatrix)
+	);
+	m_dContext->Unmap(m_vConstBuffer.Get(), 0);
+
+	return true;
+}
+bool Renderer::UpdateVertexConstantBuffer(dx::XMMATRIX& matrix)
+{
+	WVPMatrix wvpMatrix = {
+		matrix,
+		m_dxCam.GetViewMatrix(),
+		m_dxCam.GetProjectionMatrix()
+	};
+
+	D3D11_MAPPED_SUBRESOURCE mResource = {};
+
+	m_hr = m_dContext->Map(m_vConstBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mResource);
+	if (FAILED(m_hr))
+		return false;
+	memcpy(
+		mResource.pData,
+		&wvpMatrix,
+		sizeof(WVPMatrix)
+	);
+	m_dContext->Unmap(m_vConstBuffer.Get(), 0);
+
+	return true;
+}
+
 bool Renderer::BuildVertexBuffer()
 {
 	/// Vertex Buffer
-	D3D11_BUFFER_DESC vdesc = {};
-	vdesc.Usage = D3D11_USAGE_DYNAMIC;
-	vdesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	vdesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-	vdesc.ByteWidth;
-	vdesc.StructureByteStride;
-	vdesc.MiscFlags;
+	D3D11_BUFFER_DESC vertexDesc = {};
+	vertexDesc.Usage = D3D11_USAGE_DYNAMIC;
+	vertexDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	vertexDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	vertexDesc.ByteWidth = BYTEWIDTH_MAX;
+	vertexDesc.StructureByteStride = 0;
+	vertexDesc.MiscFlags = 0;
 
-	D3D11_SUBRESOURCE_DATA subData = {};
-	subData.pSysMem = m_assets.GetVertexVector().data();
-
-	hr = m_device->CreateBuffer(&vdesc, &subData, m_vertexBuffer.GetAddressOf());
-	if (FAILED(hr))
-		return infoDump();
+	m_hr = m_device->CreateBuffer(
+		&vertexDesc,
+		NULL, // Size only
+		m_vertexBuffer.GetAddressOf()
+	);
+	return SUCCEEDED(m_hr);
 }
-bool Renderer::BuildConstantBuffers()
+bool Renderer::BuildIndexBuffer()
 {
-	/// Constant buffers (material, light)
+	/// Index Buffer
+	D3D11_BUFFER_DESC indexDesc = {};
+	indexDesc.Usage = D3D11_USAGE_DYNAMIC;
+	indexDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	indexDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	indexDesc.ByteWidth = BYTEWIDTH_MAX;
+	indexDesc.StructureByteStride = 0;
+	indexDesc.MiscFlags = 0;
 
-	return false;
+	m_hr = m_device->CreateBuffer(
+		&indexDesc,
+		NULL, // Size only
+		m_indexBuffer.GetAddressOf()
+	);
+	return SUCCEEDED(m_hr);
 }
-
-// Returns true if no error is found
-bool Renderer::infoDump()
+bool Renderer::UpdateVertexBuffer(Assets& asset)
 {
-	if (HRESULT(hr) == 0)
-	{ return true; }
+	D3D11_MAPPED_SUBRESOURCE mResource = {};
+	// Take pointer from GPU
+	m_hr = m_dContext->Map(m_vertexBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mResource);
 
+	memcpy(
+		mResource.pData,
+		asset.GetVertexData(),
+		asset.GetVertexByteWidth()
+	);
 
-	return HRESULT(hr);
+	// Give pointer back to GPU
+	m_dContext->Unmap(m_vertexBuffer.Get(), 0);
+
+	return SUCCEEDED(m_hr);
+}
+bool Renderer::UpdateIndexBuffer(Assets& asset)
+{
+	D3D11_MAPPED_SUBRESOURCE mResource = {};
+	// Take pointer from GPU
+	m_hr = m_dContext->Map(m_indexBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mResource);
+
+	memcpy(
+		mResource.pData,
+		asset.GetIndexData(),
+		asset.GetIndexByteWidth()
+	);
+
+	// Give pointer back to GPU
+	m_dContext->Unmap(m_indexBuffer.Get(), 0);
+
+	return SUCCEEDED(m_hr);
 }
 
-
-
-
+inline void Renderer::infoDump(unsigned line)
+{
+	// Gets the last known error and throws
+	_com_error error(m_hr);
+	LPCTSTR errorText = error.ErrorMessage();
+	_wassert(errorText, _CRT_WIDE(__FILE__), line);
+}
 
 
 //Obj Parser
-bool Renderer::ParseObj(std::vector<std::string> pathFiles)
+bool Renderer::ParseObj(std::vector<std::string> pathFiles, unsigned char flag)
 {
 	/// Parses the files included as parameter
 	/// !OBS: The first input in the array/vector should always be equal to the 
 	/// path of the files and empty if files are located in the same folder.
+	
+	Assets asset = {};
+
 	for (int i = 1; i < pathFiles.size(); i++)
 	{
-		if (!m_assets.ParseFromObjFile(pathFiles[0], pathFiles[i], false))
+		if (!asset.ParseFromObjFile(pathFiles[0], pathFiles[i], false))
 			return false;
 	}
-
-	UpdateVertexBuffer();
-	UpdateIndiceBuffer();
+	m_assets.try_emplace(flag, asset);
 	return true;
+}
+bool Renderer::SetMeshMatrix(std::string id, const dx::XMMATRIX& matrix)
+{
+	Mesh* tempMesh;
+	for (auto& asset : m_assets)
+	{
+		if (asset.second.GetMesh(id, tempMesh))
+		{
+			tempMesh->SetMatrix(
+				matrix
+			);
+			return true;
+		}
+	}
+	return false;
 }
 
 //Renderer
-void Renderer::Draw()
-	// Everything to be rendered each frame
+void Renderer::Draw(std::vector<std::string> drawTargets)
+{
+	//TODO
+}
+void Renderer::Draw(std::vector< std::pair<std::string, dx::XMMATRIX> > drawTargets)
 {
 	ClearBuffer();
 	UINT stride = sizeof(Vertex);
 	UINT offset = 0;
-	
-	for (auto& mapObj : m_assets.GetMeshMap())
+	Mesh* mesh = nullptr;
+	unsigned char flag = 0; // Default
+	// Find the mesh from the vector
+	for (int i = 0; i < drawTargets.size(); i++) //TODO SWAP PLACE WITH FOR EACH LOOP
 	{
-		
+		flag = 0;
+		Assets currentAsset;
+		// Finds the first occurens of the mesh with mathing id
+		for (auto& asset : m_assets)
+		{
+			if (asset.second.GetMesh(drawTargets[i].first, mesh))
+			{
+				if (!UpdateIndexBuffer(asset.second)) { infoDump((unsigned)__LINE__); return; }
+				if (!UpdateVertexBuffer(asset.second)) { infoDump((unsigned)__LINE__); return; }
+				currentAsset = asset.second;
+				flag = asset.first;
+				break;
+			}
+		}
+		if (mesh == nullptr) // Aka the ID does not match any currently loaded objects
+		{
+			continue;
+		}
 
+		//Per mesh updates
+		if (!UpdateVertexConstantBuffer(drawTargets[i].second)) { infoDump((unsigned)__LINE__); return; }
+
+
+
+		// Read asset flag for used data
+		int inputlayout = (int)((flag & 0b11110000) >> 4);
+		int shaderSet = (int)(flag & 0b00001111);
+		
+		// Set Input Layout
+		m_dContext->IASetInputLayout(m_inputLayout[inputlayout].Get());
+
+		// Set Shaders
+		m_dContext->VSSetShader(m_shaders[shaderSet].vertexShader.Get(), nullptr, 0);
+		m_dContext->HSSetShader(m_shaders[shaderSet].hullShader.Get(), nullptr, 0);
+		m_dContext->DSSetShader(m_shaders[shaderSet].domainShader.Get(), nullptr, 0);
+		m_dContext->GSSetShader(m_shaders[shaderSet].geometryShader.Get(), nullptr, 0);
+		m_dContext->PSSetShader(m_shaders[shaderSet].pixelShader.Get(), nullptr, 0);
 
 		//IA
-		m_dContext->IASetVertexBuffers();
-		m_dContext->IASetIndexBuffer();
-		m_dContext->IASetInputLayout();
+		m_dContext->IASetVertexBuffers(0, 1, m_vertexBuffer.GetAddressOf(), &stride, &offset);
+		m_dContext->IASetIndexBuffer(m_indexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0); // UINT == 32 bit
 		m_dContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-		m_dContext->IASetIndexBuffer();
 
 		//VS
 
 
 		//RS
-		m_dContext->RSSetViewports();
+		m_dContext->RSSetViewports(1, &m_viewport);
 
 		//PS
 
+
 		//OM
-		m_dContext->OMSetRenderTargets();
+		m_dContext->OMSetRenderTargets(1, m_rtv.GetAddressOf(), m_depthStencilView.Get());
 
 		//Drawcall
 		m_dContext->DrawIndexed(
-			mapObj.second.GetIndiceCount(),
-			mapObj.second.GetIndiceStartIndex(),
-			mapObj.second.GetVerticeStartIndex()
+			mesh->GetIndiceCount(),
+			mesh->GetIndiceStartIndex(),
+			mesh->GetVerticeStartIndex()
 		);
-
 	}
-	//End Frame
-	m_swapChain->Present(1,0);
-}
 
+	m_swapChain->Present(1, 0);
+};
 void Renderer::ClearBuffer()
 {
 	float bgColor[4] = { 0.0f, 0.0f, 0.0f, 0 };
 	m_dContext->ClearRenderTargetView(m_rtv.Get(), bgColor);
-}
-bool Renderer::UpdateVertexBuffer()
-{
-	D3D11_MAPPED_SUBRESOURCE mResource;
-	// Take pointer from GPU
-	hr = m_dContext->Map(m_vertexBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mResource);
-
-	// Penalty of reading what pData is pointing to
-	memcpy(mResource.pData, 
-		m_assets.GetVertexVector().data(), 
-		m_assets.GetVertexVector().size() * sizeof(Vertex) 
-	);
-
-	// Give pointer back to GPU
-	m_dContext->Unmap(m_vertexBuffer.Get(), 0); 
-
-	return HRESULT(hr);
-}
-bool Renderer::UpdateIndiceBuffer()
-{
-	//TODO
-	return HRESULT(hr);
 }

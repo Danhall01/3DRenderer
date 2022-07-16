@@ -6,6 +6,9 @@
 #include <map>
 #include <unordered_set>
 
+
+
+
 //Help on maps & switch strings by article https://www.codeguru.com/cplusplus/switch-on-strings-in-c/
 //By CodeGuru Staff
 
@@ -35,35 +38,31 @@ enum CMDVal
 	cmd_illum,
 	cmd_end
 };
-static std::map<std::string, CMDVal> s_CMD;
-void Assets::InitCMD()
-{
+static const std::map<std::string, CMDVal> s_CMD = {
 	//Obj file
-	s_CMD["#"] = cmd_comment;
-	s_CMD["v"] = cmd_v;
-	s_CMD["vt"] = cmd_vt;
-	s_CMD["vn"] = cmd_vn;
-	s_CMD["o"] = cmd_o;
-	s_CMD["s"] = cmd_s;
-	s_CMD["f"] = cmd_f;
-	s_CMD["mtllib"] = cmd_mtllib;
-	s_CMD["usemtl"] = cmd_usemtl;
+	{"#", cmd_comment},
+	{"v", cmd_v},
+	{"vt", cmd_vt},
+	{"vn", cmd_vn},
+	{"o", cmd_o},
+	{"s", cmd_s},
+	{"f", cmd_f},
+	{"mtllib", cmd_mtllib},
+	{"usemtl", cmd_usemtl},
 	//Texture file
-	s_CMD["newmtl"] = cmd_newmtl;
-	s_CMD["Ns"]= cmd_ns;
-	s_CMD["Ka"] = cmd_ka;
-	s_CMD["Kd"] = cmd_kd;
-	s_CMD["map_Kd"] = cmd_mapKd;
-	s_CMD["Ks"] = cmd_ks;
-	s_CMD["Ke"] = cmd_ke;
-	s_CMD["Ni"] = cmd_ni;
-	s_CMD["d"] = cmd_d;
-	s_CMD["illum"] = cmd_illum;
-}
-Assets::Assets()
-{
-	InitCMD();
-}
+	{"newmtl", cmd_newmtl},
+	{"Ns", cmd_ns},
+	{"Ka", cmd_ka},
+	{"Kd", cmd_kd},
+	{"map_Kd", cmd_mapKd},
+	{"Ks", cmd_ks},
+	{"Ke", cmd_ke},
+	{"Ni", cmd_ni},
+	{"d", cmd_d},
+	{"illum", cmd_illum}
+};
+
+Assets::Assets() {}
 Assets::~Assets() {}
 
 
@@ -71,11 +70,17 @@ const Texture Assets::GetTexture(std::string texId) const
 {
 	return m_textureMap.at(texId);
 }
-const Mesh Assets::GetMesh(std::string meshId) const
+bool Assets::GetMesh(std::string meshId, Mesh*& mesh) const
 {
-	return m_meshMap.at(meshId);
+	if (m_meshMap.count(meshId) > 0)
+	{
+		*mesh = m_meshMap.at(meshId);
+		return true;
+	}
+	mesh = nullptr;
+	return false;
 }
-const std::map<std::string, Mesh> Assets::GetMeshMap() const
+const std::unordered_map<std::string, Mesh> Assets::GetMeshMap() const
 {
 	return m_meshMap;
 }
@@ -89,11 +94,28 @@ const std::vector<Vertex>& Assets::GetVertexVector() const
 	return m_verticeList;
 }
 
+const Vertex* Assets::GetVertexData() const
+{
+	return m_verticeList.data();
+}
+const UINT Assets::GetVertexByteWidth() const
+{
+	return (UINT)m_verticeList.size() * sizeof(Vertex);
+}
+
+const int* Assets::GetIndexData() const
+{
+	return m_indiceList.data();
+}
+const UINT Assets::GetIndexByteWidth() const
+{
+	return (UINT)m_indiceList.size() * sizeof(int);
+}
+
 
 
 bool Assets::ParseFromObjFile(std::string path, std::string filename, bool severity)
 {
-	std::string ultimapath(path + filename);
 	std::ifstream file(path + filename, std::ifstream::in);
 	if (!file.is_open())
 	{
@@ -135,7 +157,7 @@ bool Assets::ParseFromObjFile(std::string path, std::string filename, bool sever
 			}
 			pstream >> word;
 			mesh.SetId(word);
-			mesh.SetTextureId("None");
+			mesh.SetTextureId("Default");
 			mesh.SetIndiceStartIndex(0);
 			mesh.SetVerticeStartIndex(0);
 			break;
@@ -217,7 +239,7 @@ bool Assets::ParseFromObjFile(std::string path, std::string filename, bool sever
 	for (auto& indice : newVec)
 	{
 		sscanf_s(indice.c_str(),"%d/%d/%d",
-				&ixyz[0], &ixyz[1], &ixyz[2]); // Reads Pos/UV/Normal
+				&ixyz[0], &ixyz[1], &ixyz[2]); // Reads: Pos/UV/Normal
 
 		// x/y/z is numbered from 1 and up
 		m_verticeList.push_back({ posList[(ixyz[0]-1)], normalList[(ixyz[2]-1)], uvList[(ixyz[1]-1)] });

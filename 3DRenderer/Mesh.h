@@ -4,13 +4,11 @@
 #include <string>
 #include <DirectXMath.h>
 
-// TODO:
-// Beskriver ej positionen i scenen
+#include "Structures.h"
 
 class Mesh
 {
 private:
-
 public:
 	Mesh();
 	Mesh(std::string id);
@@ -27,6 +25,7 @@ public:
 	void SetId(std::string id);
 	void SetTextureId(std::string id);
 
+
 	//Getters
 	std::string GetId() const;
 	std::string GetTextureId() const;
@@ -35,15 +34,17 @@ public:
 	unsigned int GetVerticeStartIndex() const;
 	unsigned int GetIndiceStartIndex() const;
 
+public: //D3D11 stuff
+	void SetMatrix(const dx::XMMATRIX& matrix);
+	const dx::XMMATRIX& GetMatrix() const;
 private:
-
+	dx::XMMATRIX m_matrix;
 
 
 private:
 	//Container info
 	std::string m_id;
 	std::string m_textureid;
-
 	//Data
 	unsigned int m_indiceCount;
 	unsigned int m_indiceStartIndex;
