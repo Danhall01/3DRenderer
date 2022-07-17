@@ -27,7 +27,7 @@ Default: Deferred rendering
 
 
 TODO:
-- HLSL (So I can see something)[Only to see correct data is passed]
+- Make the pixel shader run
 - Texture buffer
 - Set up deferred (G-buffer)
 - Light buffer

@@ -97,7 +97,7 @@ private: //D3D11 VARIABLES
 
 	// Tips and tricks
 	// Source: https://developer.nvidia.com/content/constant-buffers-without-constant-pain-0
-	// 1. Do not swap between constant buffers
+	// 1. Do not swap between different constant buffers
 	// 2. Constant buffer that gets updated should only affect one step in the pipeline
 	// 3. Do not read from the Map[MAP_WRITE_DISCARD] data
 	WRL::ComPtr<ID3D11Buffer>                   m_vConstBuffer;

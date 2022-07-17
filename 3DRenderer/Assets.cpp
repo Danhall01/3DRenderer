@@ -70,14 +70,13 @@ const Texture Assets::GetTexture(std::string texId) const
 {
 	return m_textureMap.at(texId);
 }
-bool Assets::GetMesh(std::string meshId, Mesh*& mesh) const
+bool Assets::GetMesh(std::string meshId, Mesh& mesh) const
 {
 	if (m_meshMap.count(meshId) > 0)
 	{
-		*mesh = m_meshMap.at(meshId);
+		mesh = m_meshMap.at(meshId);
 		return true;
 	}
-	mesh = nullptr;
 	return false;
 }
 const std::unordered_map<std::string, Mesh> Assets::GetMeshMap() const

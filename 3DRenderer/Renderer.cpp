@@ -77,13 +77,13 @@ bool Renderer::BuildSwapChain(wWindow window)
 {
 	/// Swapchain
 	DXGI_MODE_DESC displayDesc = {};
-	displayDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-	displayDesc.Height = (UINT)window.GetWindowHeight();
-	displayDesc.Width = (UINT)window.GetWindowWidth();
-	displayDesc.RefreshRate.Numerator = 144; // Hertz
+	displayDesc.Format                  = DXGI_FORMAT_R8G8B8A8_UNORM;
+	displayDesc.Height                  = (UINT)window.GetWindowHeight();
+	displayDesc.Width                   = (UINT)window.GetWindowWidth();
+	displayDesc.RefreshRate.Numerator   = 144; // Hertz
 	displayDesc.RefreshRate.Denominator = 1;
-	displayDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
-	displayDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
+	displayDesc.ScanlineOrdering        = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
+	displayDesc.Scaling                 = DXGI_MODE_SCALING_UNSPECIFIED;
 
 	//Anti-aliasing
 	DXGI_SAMPLE_DESC multiSamplingDesc = {};
@@ -91,14 +91,14 @@ bool Renderer::BuildSwapChain(wWindow window)
 	multiSamplingDesc.Quality = 0;
 
 	DXGI_SWAP_CHAIN_DESC swapChainDesc = {};
-	swapChainDesc.SampleDesc = multiSamplingDesc;
-	swapChainDesc.BufferDesc = displayDesc;
-	swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-	swapChainDesc.BufferCount = 1;
+	swapChainDesc.SampleDesc   = multiSamplingDesc;
+	swapChainDesc.BufferDesc   = displayDesc;
+	swapChainDesc.BufferUsage  = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+	swapChainDesc.BufferCount  = 1;
 	swapChainDesc.OutputWindow = window.Data();
-	swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
-	swapChainDesc.Windowed = true;
-	swapChainDesc.Flags = 0;
+	swapChainDesc.SwapEffect   = DXGI_SWAP_EFFECT_DISCARD;
+	swapChainDesc.Windowed     = true;
+	swapChainDesc.Flags        = 0;
 
 	D3D_FEATURE_LEVEL featureLevel[] = {
 		D3D_FEATURE_LEVEL_11_0
@@ -159,8 +159,8 @@ bool Renderer::BuildShadersDefault(ID3DBlob*& out_shaderBlob)
 {
 	shaderSet shaders = {};
 	shaders.geometryShader = nullptr;
-	shaders.hullShader = nullptr;
-	shaders.domainShader = nullptr;
+	shaders.hullShader     = nullptr;
+	shaders.domainShader   = nullptr;
 #if _DEBUG
 	wchar_t pxPath[] = L"../x64/Debug/PixelShader.cso";
 	wchar_t vsPath[] = L"../x64/Debug/VertexShader.cso";
@@ -192,11 +192,9 @@ bool Renderer::BuildShadersDefault(ID3DBlob*& out_shaderBlob)
 		NULL,
 		shaders.vertexShader.GetAddressOf()
 	);
-	if (FAILED(m_hr))
-		return false;
 
 	m_shaders.push_back(shaders);
-	return true;
+	return SUCCEEDED(m_hr);
 }
 bool Renderer::BuildInputLayoutDefault(ID3DBlob*& relativeSBlob)
 {
@@ -204,8 +202,8 @@ bool Renderer::BuildInputLayoutDefault(ID3DBlob*& relativeSBlob)
 	ID3D11InputLayout* defaultLayout;
 	D3D11_INPUT_ELEMENT_DESC vShaderInput[] = {
 		{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0},
-		{"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0},
-		{"UV", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0}
+		{"NORMAL"  , 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0},
+		{"UV"      , 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0}
 	};
 	m_hr = m_device->CreateInputLayout(
 		vShaderInput, (UINT)(sizeof(vShaderInput) / sizeof(*vShaderInput)),
@@ -224,12 +222,12 @@ bool Renderer::BuildVertexConstantBuffer()
 {
 	/// Vertex CBuffer
 	D3D11_BUFFER_DESC Desc = {};
-	Desc.Usage = D3D11_USAGE_DYNAMIC;
-	Desc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-	Desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-	Desc.ByteWidth = sizeof(WVPMatrix);
+	Desc.Usage               = D3D11_USAGE_DYNAMIC;
+	Desc.BindFlags           = D3D11_BIND_CONSTANT_BUFFER;
+	Desc.CPUAccessFlags      = D3D11_CPU_ACCESS_WRITE;
+	Desc.ByteWidth           = sizeof(WVPMatrix);
 	Desc.StructureByteStride = 0;
-	Desc.MiscFlags = 0;
+	Desc.MiscFlags           = 0;
 
 	WVPMatrix matrix = {
 		dx::XMMatrixIdentity(),
@@ -237,7 +235,9 @@ bool Renderer::BuildVertexConstantBuffer()
 		m_dxCam.GetProjectionMatrix()
 	};
 	D3D11_SUBRESOURCE_DATA subData = {};
-	subData.pSysMem = &matrix;
+	subData.pSysMem          = &matrix;
+	subData.SysMemPitch      = 0;
+	subData.SysMemSlicePitch = 0;
 
 	m_hr = m_device->CreateBuffer(
 		&Desc,
@@ -295,12 +295,12 @@ bool Renderer::BuildVertexBuffer()
 {
 	/// Vertex Buffer
 	D3D11_BUFFER_DESC vertexDesc = {};
-	vertexDesc.Usage = D3D11_USAGE_DYNAMIC;
-	vertexDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	vertexDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-	vertexDesc.ByteWidth = BYTEWIDTH_MAX;
+	vertexDesc.Usage               = D3D11_USAGE_DYNAMIC;
+	vertexDesc.BindFlags           = D3D11_BIND_VERTEX_BUFFER;
+	vertexDesc.CPUAccessFlags      = D3D11_CPU_ACCESS_WRITE;
+	vertexDesc.ByteWidth           = BYTEWIDTH_MAX;
 	vertexDesc.StructureByteStride = 0;
-	vertexDesc.MiscFlags = 0;
+	vertexDesc.MiscFlags           = 0;
 
 	m_hr = m_device->CreateBuffer(
 		&vertexDesc,
@@ -313,12 +313,12 @@ bool Renderer::BuildIndexBuffer()
 {
 	/// Index Buffer
 	D3D11_BUFFER_DESC indexDesc = {};
-	indexDesc.Usage = D3D11_USAGE_DYNAMIC;
-	indexDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
-	indexDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-	indexDesc.ByteWidth = BYTEWIDTH_MAX;
+	indexDesc.Usage               = D3D11_USAGE_DYNAMIC;
+	indexDesc.BindFlags           = D3D11_BIND_INDEX_BUFFER;
+	indexDesc.CPUAccessFlags      = D3D11_CPU_ACCESS_WRITE;
+	indexDesc.ByteWidth           = BYTEWIDTH_MAX;
 	indexDesc.StructureByteStride = 0;
-	indexDesc.MiscFlags = 0;
+	indexDesc.MiscFlags           = 0;
 
 	m_hr = m_device->CreateBuffer(
 		&indexDesc,
@@ -389,12 +389,12 @@ bool Renderer::ParseObj(std::vector<std::string> pathFiles, unsigned char flag)
 }
 bool Renderer::SetMeshMatrix(std::string id, const dx::XMMATRIX& matrix)
 {
-	Mesh* tempMesh;
+	Mesh tempMesh = {};
 	for (auto& asset : m_assets)
 	{
 		if (asset.second.GetMesh(id, tempMesh))
 		{
-			tempMesh->SetMatrix(
+			tempMesh.SetMatrix(
 				matrix
 			);
 			return true;
@@ -455,27 +455,23 @@ void Renderer::Draw(std::vector< std::pair<std::string, dx::XMMATRIX> > drawTarg
 
 
 		// Draw all the used meshes in asset
-		Mesh* mesh = nullptr;
+		Mesh mesh = {};
 		for (int i = 0; i < drawTargets.size(); i++)
 		{
 			if (asset.second.GetMesh(drawTargets[i].first, mesh))
 			{
-				
-
 				//Per mesh updates
 				if (!UpdateVertexConstantBuffer(drawTargets[i].second)) { infoDump((unsigned)__LINE__); return; }
+				m_dContext->VSSetConstantBuffers(0, 1, m_vConstBuffer.GetAddressOf());
 
 				//Drawcall
 				m_dContext->DrawIndexed(
-					mesh->GetIndiceCount(),
-					mesh->GetIndiceStartIndex(),
-					mesh->GetVerticeStartIndex()
+					mesh.GetIndiceCount(),
+					mesh.GetIndiceStartIndex(),
+					mesh.GetVerticeStartIndex()
 				);
 			}
 		}
-
-
-
 	}
 	m_swapChain->Present(1, 0);
 };

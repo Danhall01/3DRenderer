@@ -25,7 +25,7 @@ public:
 
 	
 	const Texture GetTexture(std::string texId) const;
-	bool GetMesh(std::string meshId, Mesh*& mesh) const;
+	bool GetMesh(std::string meshId, Mesh& mesh) const;
 	const std::unordered_map<std::string, Mesh> GetMeshMap() const;
 
 	const std::vector<int>& GetIndiceVector() const;

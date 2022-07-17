@@ -136,9 +136,9 @@ int APIENTRY wWinMain(
 	// Create the render list
 	std::vector<std::pair<std::string, DirectX::XMMATRIX>> drawable;
 	
-	std::string rect = "Rectangle";
+	std::string rect = "Cube";
 	dx::XMMATRIX matrix = dx::XMMatrixIdentity();
-	
+
 	drawable.push_back({rect, matrix});
 
 
