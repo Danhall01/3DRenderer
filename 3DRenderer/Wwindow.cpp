@@ -55,7 +55,7 @@ LRESULT CALLBACK defaultWndProc(HWND aHWnd, UINT aMessage, WPARAM aWParam, LPARA
 
 
 //The class
-wWindow::wWindow(LPCWSTR windowName, HINSTANCE instance, UINT width, UINT height, 
+wWindow::wWindow(LPCWSTR windowName, HINSTANCE instance, float width, float height, 
 	int nCmdShow, std::function<void(MSG&)> EventFunction)
 {
 	//init variables
@@ -77,12 +77,12 @@ wWindow::wWindow(LPCWSTR windowName, HINSTANCE instance, UINT width, UINT height
 	wc.lpfnWndProc = defaultWndProc;
 	wc.hInstance = instance;
 	wc.lpszClassName = CLASS_NAME;
-	wc.style = CS_OWNDC;
+	wc.style = CS_OWNDC | CS_HREDRAW | CS_VREDRAW;
 
 
 	RegisterClass(&wc);
 	m_window = CreateWindowEx(0, CLASS_NAME, windowName, WS_OVERLAPPEDWINDOW,
-		CW_USEDEFAULT, 0, m_windowWidth, m_windowHeight, nullptr, nullptr, instance, nullptr);
+		CW_USEDEFAULT, 0, (int)m_windowWidth, (int)m_windowHeight, nullptr, nullptr, instance, nullptr);
 	if (m_window == nullptr)
 	{
 		exit(1);
@@ -93,6 +93,6 @@ wWindow::wWindow(LPCWSTR windowName, HINSTANCE instance, UINT width, UINT height
 wWindow::~wWindow(){}
 
 const HWND& wWindow::Data() const { return m_window; }
-const UINT wWindow::GetWindowHeight() const { return m_windowHeight; }
-const UINT wWindow::GetWindowWidth() const { return m_windowWidth; }
+const float wWindow::GetWindowHeight() const { return m_windowHeight; }
+const float wWindow::GetWindowWidth() const { return m_windowWidth; }
 const float wWindow::GetWindowRatio() {	return (float)(m_windowWidth) / (float)(m_windowHeight); }

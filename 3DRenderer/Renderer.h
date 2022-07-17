@@ -85,7 +85,7 @@ private: //D3D11 VARIABLES
 
 	WRL::ComPtr<IDXGISwapChain>                 m_swapChain;
 	WRL::ComPtr<ID3D11RenderTargetView>         m_rtv;
-	WRL::ComPtr<ID3D11DepthStencilView>         m_depthStencilView;
+	WRL::ComPtr<ID3D11DepthStencilView>         m_dsv;
 
 	WRL::ComPtr<ID3D11Buffer>                   m_indexBuffer;
 	WRL::ComPtr<ID3D11Buffer>                   m_vertexBuffer;

@@ -44,11 +44,11 @@ Renderer::Renderer()
 }
 Renderer::~Renderer()
 {
-#ifdef _DEBUG
-	//WRL::ComPtr<ID3D11Debug> debug;
-	//m_device.As(&debug);
-	//m_hr = debug.Get()->ReportLiveDeviceObjects(D3D11_RLDO_FLAGS::D3D11_RLDO_SUMMARY);
-#endif
+//#ifdef _DEBUG
+//	WRL::ComPtr<ID3D11Debug> debug;
+//	m_device.As(&debug);
+//	m_hr = debug.Get()->ReportLiveDeviceObjects(D3D11_RLDO_FLAGS::D3D11_RLDO_DETAIL);
+//#endif
 
 }
 
@@ -148,8 +148,8 @@ bool Renderer::BuildViewport(wWindow window)
 	/// Viewport
 	m_viewport.Height    = window.GetWindowHeight();
 	m_viewport.Width     = window.GetWindowWidth();
-	m_viewport.MaxDepth  = 0;
-	m_viewport.MinDepth  = 1;
+	m_viewport.MinDepth  = 0;
+	m_viewport.MaxDepth  = 1;
 	m_viewport.TopLeftX  = 0; // o --
 	m_viewport.TopLeftY  = 0; // |
 
@@ -242,7 +242,7 @@ bool Renderer::BuildVertexConstantBuffer()
 	m_hr = m_device->CreateBuffer(
 		&Desc,
 		&subData,
-		m_vertexBuffer.GetAddressOf()
+		m_vConstBuffer.GetAddressOf()
 	);
 	return SUCCEEDED(m_hr);
 }
@@ -341,7 +341,6 @@ bool Renderer::UpdateVertexBuffer(Assets& asset)
 
 	// Give pointer back to GPU
 	m_dContext->Unmap(m_vertexBuffer.Get(), 0);
-
 	return SUCCEEDED(m_hr);
 }
 bool Renderer::UpdateIndexBuffer(Assets& asset)
@@ -401,6 +400,7 @@ bool Renderer::SetMeshMatrix(std::string id, const dx::XMMATRIX& matrix)
 			return true;
 		}
 	}
+
 	return false;
 }
 
@@ -414,41 +414,19 @@ void Renderer::Draw(std::vector< std::pair<std::string, dx::XMMATRIX> > drawTarg
 	ClearBuffer();
 	UINT stride = sizeof(Vertex);
 	UINT offset = 0;
-	Mesh* mesh = nullptr;
 	unsigned char flag = 0; // Default
-	// Find the mesh from the vector
-	for (int i = 0; i < drawTargets.size(); i++) //TODO SWAP PLACE WITH FOR EACH LOOP
+	// Go through assets
+	for (auto& asset : m_assets)
 	{
-		flag = 0;
-		Assets currentAsset;
-		// Finds the first occurens of the mesh with mathing id
-		for (auto& asset : m_assets)
-		{
-			if (asset.second.GetMesh(drawTargets[i].first, mesh))
-			{
-				if (!UpdateIndexBuffer(asset.second)) { infoDump((unsigned)__LINE__); return; }
-				if (!UpdateVertexBuffer(asset.second)) { infoDump((unsigned)__LINE__); return; }
-				currentAsset = asset.second;
-				flag = asset.first;
-				break;
-			}
-		}
-		if (mesh == nullptr) // Aka the ID does not match any currently loaded objects
-		{
-			continue;
-		}
-
-		//Per mesh updates
-		if (!UpdateVertexConstantBuffer(drawTargets[i].second)) { infoDump((unsigned)__LINE__); return; }
-
-
-
 		// Read asset flag for used data
+		flag = asset.first;
 		int inputlayout = (int)((flag & 0b11110000) >> 4);
 		int shaderSet = (int)(flag & 0b00001111);
-		
-		// Set Input Layout
-		m_dContext->IASetInputLayout(m_inputLayout[inputlayout].Get());
+
+
+		if (!UpdateIndexBuffer(asset.second)) { infoDump((unsigned)__LINE__); return; }
+		if (!UpdateVertexBuffer(asset.second)) { infoDump((unsigned)__LINE__); return; }
+
 
 		// Set Shaders
 		m_dContext->VSSetShader(m_shaders[shaderSet].vertexShader.Get(), nullptr, 0);
@@ -458,6 +436,7 @@ void Renderer::Draw(std::vector< std::pair<std::string, dx::XMMATRIX> > drawTarg
 		m_dContext->PSSetShader(m_shaders[shaderSet].pixelShader.Get(), nullptr, 0);
 
 		//IA
+		m_dContext->IASetInputLayout(m_inputLayout[inputlayout].Get());
 		m_dContext->IASetVertexBuffers(0, 1, m_vertexBuffer.GetAddressOf(), &stride, &offset);
 		m_dContext->IASetIndexBuffer(m_indexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0); // UINT == 32 bit
 		m_dContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -469,19 +448,35 @@ void Renderer::Draw(std::vector< std::pair<std::string, dx::XMMATRIX> > drawTarg
 		m_dContext->RSSetViewports(1, &m_viewport);
 
 		//PS
-
+		    // Set constant buffer with material data and texture data
 
 		//OM
-		m_dContext->OMSetRenderTargets(1, m_rtv.GetAddressOf(), m_depthStencilView.Get());
+		m_dContext->OMSetRenderTargets(1, m_rtv.GetAddressOf(), m_dsv.Get());
 
-		//Drawcall
-		m_dContext->DrawIndexed(
-			mesh->GetIndiceCount(),
-			mesh->GetIndiceStartIndex(),
-			mesh->GetVerticeStartIndex()
-		);
+
+		// Draw all the used meshes in asset
+		Mesh* mesh = nullptr;
+		for (int i = 0; i < drawTargets.size(); i++)
+		{
+			if (asset.second.GetMesh(drawTargets[i].first, mesh))
+			{
+				
+
+				//Per mesh updates
+				if (!UpdateVertexConstantBuffer(drawTargets[i].second)) { infoDump((unsigned)__LINE__); return; }
+
+				//Drawcall
+				m_dContext->DrawIndexed(
+					mesh->GetIndiceCount(),
+					mesh->GetIndiceStartIndex(),
+					mesh->GetVerticeStartIndex()
+				);
+			}
+		}
+
+
+
 	}
-
 	m_swapChain->Present(1, 0);
 };
 void Renderer::ClearBuffer()

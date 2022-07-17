@@ -16,7 +16,6 @@ Requirements:
 	[ ]GPU-based billboarded particle system (rain)
 
 
-
 Shader Flags:
    Shader Inputlayout
 0b 0000   0000 :  Default  Default
@@ -25,3 +24,12 @@ Shader Flags:
 0b
 
 Default: Deferred rendering
+
+
+TODO:
+- HLSL (So I can see something)[Only to see correct data is passed]
+- Texture buffer
+- Set up deferred (G-buffer)
+- Light buffer
+- ...
+- Draw(string)

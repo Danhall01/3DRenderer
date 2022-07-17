@@ -136,14 +136,14 @@ int APIENTRY wWinMain(
 	// Create the render list
 	std::vector<std::pair<std::string, DirectX::XMMATRIX>> drawable;
 	
-	//std::string rect = "Rectangle";
-	//RSTMatrix matrix = {};
+	std::string rect = "Rectangle";
+	dx::XMMATRIX matrix = dx::XMMatrixIdentity();
 	
-	//drawable.push_back({rect, matrix});
+	drawable.push_back({rect, matrix});
 
 
 	float speedMultiplier = 0.13f;
-
+	
 	using clock = std::chrono::high_resolution_clock;
 	std::chrono::nanoseconds elapsedTime(0ns);
 	auto startTime = clock::now();

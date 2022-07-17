@@ -34,13 +34,6 @@ public:
 	unsigned int GetVerticeStartIndex() const;
 	unsigned int GetIndiceStartIndex() const;
 
-public: //D3D11 stuff
-	void SetMatrix(const dx::XMMATRIX& matrix);
-	const dx::XMMATRIX& GetMatrix() const;
-private:
-	dx::XMMATRIX m_matrix;
-
-
 private:
 	//Container info
 	std::string m_id;
@@ -49,4 +42,12 @@ private:
 	unsigned int m_indiceCount;
 	unsigned int m_indiceStartIndex;
 	unsigned int m_verticeStartIndex;
+
+public: //D3D11 stuff
+	void SetMatrix(const dx::XMMATRIX& matrix);
+	const dx::XMMATRIX& GetMatrix() const;
+private:
+	dx::XMMATRIX m_matrix;
+
+
 };
