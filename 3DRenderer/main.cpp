@@ -78,7 +78,7 @@ void keyUp(WPARAM key)
 		backward = false;
 		break;
 
-	case VK_LCONTROL: //LCTRL
+	case VK_CONTROL: //LCTRL
 		down = false;
 		break;
 
@@ -129,16 +129,16 @@ int APIENTRY wWinMain(
 
 	std::vector<std::string> inFiles = {
 		"../External Resources/SceneObjects/",
-		"Rectangle.obj"
+		"Cube_triangulated.obj",
 	};
 	renderer.ParseObj(inFiles, 0);
 
 	// Create the render list
 	std::vector<std::pair<std::string, DirectX::XMMATRIX>> drawable;
 	
-	std::string rect = "Cube";
+	std::string rect = "Cube_Cube.001";
 	dx::XMMATRIX matrix = dx::XMMatrixIdentity();
-
+	matrix *= dx::XMMatrixTranslation(0, 0, 5);
 	drawable.push_back({rect, matrix});
 
 

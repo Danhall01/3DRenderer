@@ -123,8 +123,13 @@ bool Assets::ParseFromObjFile(std::string path, std::string filename, bool sever
 	std::string line;
 	std::string word;
 	Mesh mesh;
+	// int based - xyz static array
 	int ixyz[3] = {};
+
+	// Current amount of indicies used by the mesh
 	int indiceSize = 0;
+	// The start position in the index buffer
+	int startIndexSize = m_indiceList.size();
 
 	//Data for current OBJ file being read
 	std::vector<std::array<float, 3>> posList;
@@ -132,7 +137,6 @@ bool Assets::ParseFromObjFile(std::string path, std::string filename, bool sever
 	std::vector <std::array<float, 2>> uvList;
 	std::vector<std::string> indiceStrVec; //To be added to the list
 	
-
 
 	while (file.good())
 	{
@@ -152,12 +156,13 @@ bool Assets::ParseFromObjFile(std::string path, std::string filename, bool sever
 			if (!mesh.Empty())
 			{
 				AddMesh(mesh, indiceSize);
+				startIndexSize += indiceSize;
 				indiceSize = 0;
 			}
 			pstream >> word;
 			mesh.SetId(word);
 			mesh.SetTextureId("Default");
-			mesh.SetIndiceStartIndex(0);
+			mesh.SetIndiceStartIndex(startIndexSize);
 			mesh.SetVerticeStartIndex(0);
 			break;
 		case cmd_s:
@@ -182,7 +187,6 @@ bool Assets::ParseFromObjFile(std::string path, std::string filename, bool sever
 			{
 				pstream >> word;
 				if (m_indiceMap.try_emplace(word, m_indiceMapIter).second)
-					// True if a new element is added // False if element already exists
 				{
 					++m_indiceMapIter;
 				}

@@ -28,5 +28,5 @@ struct shaderSet
 	WRL::ComPtr<ID3D11GeometryShader>   geometryShader;
 	WRL::ComPtr<ID3D11PixelShader>      pixelShader;
 
-	//WRL::ComPtr<ID3D11ComputeShader>  m_computeShader;
+	WRL::ComPtr<ID3D11ComputeShader>    computeShader;
 };

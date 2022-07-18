@@ -27,9 +27,10 @@ Default: Deferred rendering
 
 
 TODO:
-- Make the pixel shader run
-- Texture buffer
 - Set up deferred (G-buffer)
+- Texture buffer
 - Light buffer
 - ...
-- Draw(string)
+- Submesh partitioning of the geometrical data for an arbitrary amount of submeshes (OBJ-parser)
+
+~ Draw(string)

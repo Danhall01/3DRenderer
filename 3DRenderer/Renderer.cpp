@@ -20,7 +20,7 @@ wWindow Renderer::CreateWWindow(HINSTANCE instance, int nCmdShow, std::function<
 void Renderer::CreateDXCam()
 {
 	//Some default settings
-	m_dxCam = Camera(0, 0, 0, 90, BASE_WINDOW_RATIO, 0.1f, 100.0f);
+	m_dxCam = Camera(0, 0, 0, 90.0f, BASE_WINDOW_RATIO, 0.1f, 100.0f);
 }
 void Renderer::CreateDXCam(const DirectX::XMVECTOR& pos, float fovDegrees, float aspectRatio, float nearZ, float farZ)
 {
@@ -161,6 +161,7 @@ bool Renderer::BuildShadersDefault(ID3DBlob*& out_shaderBlob)
 	shaders.geometryShader = nullptr;
 	shaders.hullShader     = nullptr;
 	shaders.domainShader   = nullptr;
+	shaders.computeShader  = nullptr;
 #if _DEBUG
 	wchar_t pxPath[] = L"../x64/Debug/PixelShader.cso";
 	wchar_t vsPath[] = L"../x64/Debug/VertexShader.cso";
@@ -249,9 +250,9 @@ bool Renderer::BuildVertexConstantBuffer()
 bool Renderer::UpdateVertexConstantBuffer(const Mesh& mesh)
 {
 	WVPMatrix wvpMatrix = {
-		mesh.GetMatrix(),
-		m_dxCam.GetViewMatrix(),
-		m_dxCam.GetProjectionMatrix()
+		dx::XMMatrixTranspose(mesh.GetMatrix()),
+		dx::XMMatrixTranspose(m_dxCam.GetViewMatrix()),
+		dx::XMMatrixTranspose(m_dxCam.GetProjectionMatrix())
 	};
 
 	D3D11_MAPPED_SUBRESOURCE mResource = {};
@@ -271,9 +272,9 @@ bool Renderer::UpdateVertexConstantBuffer(const Mesh& mesh)
 bool Renderer::UpdateVertexConstantBuffer(dx::XMMATRIX& matrix)
 {
 	WVPMatrix wvpMatrix = {
-		matrix,
-		m_dxCam.GetViewMatrix(),
-		m_dxCam.GetProjectionMatrix()
+		dx::XMMatrixTranspose(matrix),
+		dx::XMMatrixTranspose(m_dxCam.GetViewMatrix()),
+		dx::XMMatrixTranspose(m_dxCam.GetProjectionMatrix())
 	};
 
 	D3D11_MAPPED_SUBRESOURCE mResource = {};
@@ -434,12 +435,15 @@ void Renderer::Draw(std::vector< std::pair<std::string, dx::XMMATRIX> > drawTarg
 		m_dContext->DSSetShader(m_shaders[shaderSet].domainShader.Get(), nullptr, 0);
 		m_dContext->GSSetShader(m_shaders[shaderSet].geometryShader.Get(), nullptr, 0);
 		m_dContext->PSSetShader(m_shaders[shaderSet].pixelShader.Get(), nullptr, 0);
+		m_dContext->CSSetShader(m_shaders[shaderSet].computeShader.Get(), nullptr, 0);
 
 		//IA
 		m_dContext->IASetInputLayout(m_inputLayout[inputlayout].Get());
 		m_dContext->IASetVertexBuffers(0, 1, m_vertexBuffer.GetAddressOf(), &stride, &offset);
 		m_dContext->IASetIndexBuffer(m_indexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0); // UINT == 32 bit
 		m_dContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+
 
 		//VS
 
@@ -448,7 +452,7 @@ void Renderer::Draw(std::vector< std::pair<std::string, dx::XMMATRIX> > drawTarg
 		m_dContext->RSSetViewports(1, &m_viewport);
 
 		//PS
-		    // Set constant buffer with material data and texture data
+		    // Set Light constant buffer
 
 		//OM
 		m_dContext->OMSetRenderTargets(1, m_rtv.GetAddressOf(), m_dsv.Get());
@@ -463,6 +467,8 @@ void Renderer::Draw(std::vector< std::pair<std::string, dx::XMMATRIX> > drawTarg
 				//Per mesh updates
 				if (!UpdateVertexConstantBuffer(drawTargets[i].second)) { infoDump((unsigned)__LINE__); return; }
 				m_dContext->VSSetConstantBuffers(0, 1, m_vConstBuffer.GetAddressOf());
+				// Set constant buffer with material data and texture data (PS buffer)
+
 
 				//Drawcall
 				m_dContext->DrawIndexed(

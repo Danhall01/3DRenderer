@@ -42,10 +42,12 @@ private:
 	void UpdateViewMatrix();
 
 private:
-	DirectX::XMVECTOR m_PositionVec;
-	DirectX::XMVECTOR m_RotationVec;
 	DirectX::XMMATRIX m_ViewMatrix;
 	DirectX::XMMATRIX m_ProjectionMatrix;
+
+
+	DirectX::XMVECTOR m_PositionVec;
+	DirectX::XMVECTOR m_RotationVec;
 
 	DirectX::XMFLOAT3 m_FPosition;
 	DirectX::XMFLOAT3 m_FRotation;
