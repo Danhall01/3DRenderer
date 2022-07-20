@@ -149,7 +149,6 @@
     <ClCompile Include="Mesh.cpp" />
     <ClCompile Include="Assets.cpp" />
     <ClCompile Include="Renderer.cpp" />
-    <ClCompile Include="Texture.cpp" />
     <ClCompile Include="wWindow.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -165,7 +164,6 @@
     <ClInclude Include="Renderer.h" />
     <ClInclude Include="Settings.h" />
     <ClInclude Include="Structures.h" />
-    <ClInclude Include="Texture.h" />
     <ClInclude Include="wWindow.h" />
   </ItemGroup>
   <ItemGroup>

@@ -20,7 +20,7 @@ static bool forward;
 static bool backward;
 static bool left;
 static bool right;
-//static float mouseMovement[2][3];
+//static float mouseMovement[2];
 
 //Keybind manager (Should come from the game engine)
 void keyDown(WPARAM key)
@@ -124,12 +124,13 @@ int APIENTRY wWinMain(
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 	Renderer renderer;
 	wWindow hWindow = renderer.CreateWWindow(hInstance, nCmdShow, keyEvents);
-	if (!renderer.Build(hWindow)) //Indicates failure to build
+	if (!renderer.Build(hWindow))
 		return 1;
 
 	std::vector<std::string> inFiles = {
 		"../External Resources/SceneObjects/",
 		"Cube_triangulated.obj",
+		"monkey.obj"
 	};
 	renderer.ParseObj(inFiles, 0);
 
@@ -138,9 +139,14 @@ int APIENTRY wWinMain(
 	
 	std::string rect = "Cube_Cube.001";
 	dx::XMMATRIX matrix = dx::XMMatrixIdentity();
-	matrix *= dx::XMMatrixTranslation(0, 0, 5);
 	drawable.push_back({rect, matrix});
 
+	std::string monkey = "Suzanne";
+	dx::XMMATRIX matrixMonkey = dx::XMMatrixIdentity();
+	matrixMonkey *= dx::XMMatrixRotationY(60);
+	matrixMonkey *= dx::XMMatrixTranslation(0, 0, 5);
+
+	drawable.push_back({ monkey, matrixMonkey });
 
 	float speedMultiplier = 0.13f;
 	
@@ -163,8 +169,8 @@ int APIENTRY wWinMain(
 					speedMultiplier * up - speedMultiplier * down,
 					speedMultiplier * forward - speedMultiplier * backward
 				);
+			renderer.RotateDXCam(0, 0, 0);
 			
-
 
 			//Render
 			renderer.Draw(drawable);

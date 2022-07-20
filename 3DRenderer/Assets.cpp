@@ -5,10 +5,6 @@
 #include <string>
 #include <map>
 #include <unordered_set>
-
-
-
-
 //Help on maps & switch strings by article https://www.codeguru.com/cplusplus/switch-on-strings-in-c/
 //By CodeGuru Staff
 
@@ -22,6 +18,7 @@ enum CMDVal
 	cmd_vn,
 	cmd_o,
 	cmd_s,
+	cmd_g,
 	cmd_f,
 	cmd_mtllib,
 	cmd_usemtl,
@@ -46,6 +43,7 @@ static const std::map<std::string, CMDVal> s_CMD = {
 	{"vn", cmd_vn},
 	{"o", cmd_o},
 	{"s", cmd_s},
+	{"g", cmd_g},
 	{"f", cmd_f},
 	{"mtllib", cmd_mtllib},
 	{"usemtl", cmd_usemtl},
@@ -62,14 +60,11 @@ static const std::map<std::string, CMDVal> s_CMD = {
 	{"illum", cmd_illum}
 };
 
-Assets::Assets() {}
+Assets::Assets() 
+{}
 Assets::~Assets() {}
 
-
-const Texture Assets::GetTexture(std::string texId) const
-{
-	return m_textureMap.at(texId);
-}
+// Data getters
 bool Assets::GetMesh(std::string meshId, Mesh& mesh) const
 {
 	if (m_meshMap.count(meshId) > 0)
@@ -84,35 +79,85 @@ const std::unordered_map<std::string, Mesh> Assets::GetMeshMap() const
 	return m_meshMap;
 }
 
-const std::vector<int>& Assets::GetIndiceVector() const
+bool Assets::GetTexture(std::string texId, Texture& texture) const
 {
-	return m_indiceList;
+	if (m_textureMap.count(texId) > 0)
+	{
+		texture = m_textureMap.at(texId);
+		return true;
+	}
+	return false;
 }
-const std::vector<Vertex>& Assets::GetVertexVector() const
+const std::unordered_map<std::string, Texture> Assets::GetTextureMap() const
 {
-	return m_verticeList;
-}
-
-const Vertex* Assets::GetVertexData() const
-{
-	return m_verticeList.data();
-}
-const UINT Assets::GetVertexByteWidth() const
-{
-	return (UINT)m_verticeList.size() * sizeof(Vertex);
-}
-
-const int* Assets::GetIndexData() const
-{
-	return m_indiceList.data();
-}
-const UINT Assets::GetIndexByteWidth() const
-{
-	return (UINT)m_indiceList.size() * sizeof(int);
+	return m_textureMap;
 }
 
 
+//Parser helper functions
+std::array<float, 3> Assets::MakeFXYZ(std::istringstream& pstream)
+{
+	std::array<float, 3> f_xyz = {};
+	for (int i = 0; i < 3; i++)
+	{
+		pstream >> f_xyz[i];
+	}
+	return f_xyz;
+}
+std::array<float, 2> Assets::MakeFXY(std::istringstream& pstream)
+{
+	std::array<float, 2> f_xy = {};
+	for (int i = 0; i < 2; i++)
+	{
+		pstream >> f_xy[i];
+	}
+	return f_xy;
+}
+void Assets::AddMesh(const std::string& meshID, Mesh& mesh)
+{
+	m_meshMap.try_emplace(meshID, mesh);
+}
+void Assets::ParseMesh(Mesh& mesh,
+	const std::vector<std::string>& indiceStrVec,
+	const std::unordered_map<std::string, int>& indexCountMap,
+	const std::vector<std::array<float, 3>>& posList,
+	const std::vector<std::array<float, 3>>& normalList,
+	const std::vector<std::array<float, 2>>& uvList)
+{
+	int ixyz[3] = {};
+	// run through list with map, converting to ints for index buffer
+	for (int i = 0; i < indiceStrVec.size(); i++)
+	{
+		mesh.AddIndice(indexCountMap.at(indiceStrVec[i]));
+	}
 
+	//Removes duplicates from indiceStrVec to ensure no duplicates are added as vertices
+	std::vector<std::string> newVec = {};
+	std::unordered_set<std::string> set = {};
+	std::string element = {};
+	for (int i = 0; i < indiceStrVec.size(); ++i)
+	{
+		element = indiceStrVec[i];
+		if (set.count(element) == 0)
+		{
+			newVec.push_back(element);
+			set.insert(element);
+		}
+	}
+
+	// Generates the vertices
+	for (auto& indice : newVec)
+	{
+		sscanf_s(indice.c_str(), "%d/%d/%d",
+			&ixyz[0], &ixyz[1], &ixyz[2]); // Reads: Pos/UV/Normal
+
+		// x/y/z is numbered from 1 and up
+		mesh.AddVertice({ posList[(ixyz[0] - 1)], normalList[(ixyz[2] - 1)], uvList[(ixyz[1] - 1)] });
+	}
+
+}
+
+//Parsers
 bool Assets::ParseFromObjFile(std::string path, std::string filename, bool severity)
 {
 	std::ifstream file(path + filename, std::ifstream::in);
@@ -122,20 +167,23 @@ bool Assets::ParseFromObjFile(std::string path, std::string filename, bool sever
 	}
 	std::string line;
 	std::string word;
-	Mesh mesh;
-	// int based - xyz static array
-	int ixyz[3] = {};
 
-	// Current amount of indicies used by the mesh
-	int indiceSize = 0;
-	// The start position in the index buffer
-	int startIndexSize = m_indiceList.size();
+	Mesh mesh = {};
+	std::string currentMeshId;
+
+	Submesh submesh = {};
+	std::string currentSubmeshId = "default";
+
+	// Data for the Parser, ensures no duplicates
+	std::unordered_map<std::string, int> indexCountMap;
+	int currentIndexSize = 0;
+	int indexCount = 0;
 
 	//Data for current OBJ file being read
 	std::vector<std::array<float, 3>> posList;
-	std::vector <std::array<float, 3>> normalList;
-	std::vector <std::array<float, 2>> uvList;
-	std::vector<std::string> indiceStrVec; //To be added to the list
+	std::vector<std::array<float, 3>> normalList;
+	std::vector<std::array<float, 2>> uvList;
+	std::vector<std::string> indiceStrVec;
 	
 
 	while (file.good())
@@ -153,17 +201,43 @@ bool Assets::ParseFromObjFile(std::string path, std::string filename, bool sever
 		case cmd_comment:
 			continue;
 		case cmd_o:
+			// Create a new object
+			if (!submesh.Empty())
+			{
+				submesh.indiceCount = indexCount;
+				mesh.AddSubmesh(currentSubmeshId, submesh);
+				indexCount = 0;
+			}
 			if (!mesh.Empty())
 			{
-				AddMesh(mesh, indiceSize);
-				startIndexSize += indiceSize;
-				indiceSize = 0;
+				ParseMesh(mesh,
+					indiceStrVec,
+					indexCountMap,
+					posList,
+					normalList,
+					uvList);
+				AddMesh(currentMeshId, mesh);
+
+				// Reset data
+				currentIndexSize = 0;
+
+				mesh.Clear();
+				submesh.Clear();
+				currentMeshId.clear();
+				currentSubmeshId.clear();
+
+				posList.clear();
+				normalList.clear();
+				uvList.clear();
+
+				indiceStrVec.clear();
+				indexCountMap.clear();
 			}
-			pstream >> word;
-			mesh.SetId(word);
-			mesh.SetTextureId("Default");
-			mesh.SetIndiceStartIndex(startIndexSize);
-			mesh.SetVerticeStartIndex(0);
+
+			pstream >> currentMeshId;
+			submesh.indiceStartIndex = 0;
+			submesh.verticeStartIndex = 0;
+
 			break;
 		case cmd_s:
 			//TODO: Currently not used
@@ -182,16 +256,35 @@ bool Assets::ParseFromObjFile(std::string path, std::string filename, bool sever
 			normalList.push_back(MakeFXYZ(pstream));
 			break;
 
+		case cmd_g:
+			// Create a group aka submesh
+		
+			//Push submesh to mesh
+			if (indexCount > 0)
+			{
+				submesh.indiceCount = indexCount;
+				mesh.AddSubmesh(currentSubmeshId, submesh);
+				submesh.Clear();
+				indexCount = 0;
+			}
+
+
+			//Create new submesh
+			pstream >> currentSubmeshId;
+			submesh.indiceStartIndex = currentIndexSize;
+			submesh.verticeStartIndex = 0;
+
+			break;
 		case cmd_f:
+			//Read all faces on line to last group
 			while (!pstream.eof())
 			{
 				pstream >> word;
-				if (m_indiceMap.try_emplace(word, m_indiceMapIter).second)
-				{
-					++m_indiceMapIter;
-				}
+				if (indexCountMap.try_emplace(word, indexCountMap.size()).second)
+				{}
 				indiceStrVec.push_back(word);
-				++indiceSize;
+				++currentIndexSize;
+				++indexCount;
 			}
 			break;
 
@@ -203,50 +296,33 @@ bool Assets::ParseFromObjFile(std::string path, std::string filename, bool sever
 			break;
 		case cmd_usemtl:
 			pstream >> word;
-			mesh.SetTextureId(word);
+			submesh.textureId = word;
 			break;
 
 		default: std::cerr << "Error, command not recognized! (" << cmd << ")" << std::endl; 
-			if (severity) return false;
+			if (severity) 
+				return false;
 			break;
 		}
 	}
+	if (indexCount > 0)
+	{
+		submesh.indiceCount = indexCount;
+		mesh.AddSubmesh(currentSubmeshId, submesh);
+		//indexCount = 0;
+	}
 	if (!mesh.Empty())
 	{
-		AddMesh(mesh, indiceSize);
-		indiceSize = 0;
-	}
-
-
-	// run through list with map, converting to ints for index buffer
-	for (int i = 0; i < indiceStrVec.size(); i++)
-	{
-		m_indiceList.push_back( m_indiceMap.at(indiceStrVec[i]) );
+		ParseMesh(mesh,
+			indiceStrVec,
+			indexCountMap,
+			posList,
+			normalList,
+			uvList);
+		AddMesh(currentMeshId, mesh);
+		//currentIndexSize = 0;
 	}
 	
-	//Removes duplicates from indiceStrVec to ensure no duplicates are added as vertices
-	std::vector<std::string> newVec = {};
-	std::unordered_set<std::string> set = {};
-	std::string element;
-	for (int i = 0; i < indiceStrVec.size(); ++i)
-	{
-		element = indiceStrVec[i];
-		if (set.count(element) == 0)
-		{
-			newVec.push_back(element);
-			set.insert(element);
-		}
-	}
-
-	// Generates the vertices
-	for (auto& indice : newVec)
-	{
-		sscanf_s(indice.c_str(),"%d/%d/%d",
-				&ixyz[0], &ixyz[1], &ixyz[2]); // Reads: Pos/UV/Normal
-
-		// x/y/z is numbered from 1 and up
-		m_verticeList.push_back({ posList[(ixyz[0]-1)], normalList[(ixyz[2]-1)], uvList[(ixyz[1]-1)] });
-	}
 
 	return file.eof();
 	//Fstream is automatically closed on destruction
@@ -260,7 +336,8 @@ bool Assets::ParseFromMtlFile(std::string path, bool severity)
 	}
 	std::string line;
 	std::string word;
-	Texture tex;
+	std::string currentTexID;
+	Texture tex = {};
 
 	while (file.good())
 	{
@@ -280,45 +357,41 @@ bool Assets::ParseFromMtlFile(std::string path, bool severity)
 		case cmd_newmtl:
 			if (!tex.Empty())
 			{
-				m_textureMap[tex.GetId()] = tex;
+				m_textureMap.try_emplace(currentTexID, tex);
 				tex.Clear();
 			}
-			pstream >> word;
-			tex.SetId(word);
+			pstream >> currentTexID;
 			break;
 
 		case cmd_ns:
 			pstream >> fline;
-			tex.SetSpecularHighlight(fline);
+			tex.Ns = fline;
 			break;
 		case cmd_ka:
-			tex.SetAmbientClr(MakeFXYZ(pstream));
+			tex.Ka = MakeFXYZ(pstream);
 			break;
 		case cmd_kd:
-			tex.SetDiffuseClr(MakeFXYZ(pstream));
+			tex.Kd = MakeFXYZ(pstream);
 			break;
 		case cmd_mapKd:
-
+			// TODO: not yet in use
 			break;
 		case cmd_ks:
-			tex.SetSpecularClr(MakeFXYZ(pstream));
+			tex.Ks = MakeFXYZ(pstream);
 			break;
 		case cmd_ke:
-			tex.SetEmissiveCoef(MakeFXYZ(pstream));
+			tex.Ke = MakeFXYZ(pstream);
 			break;
 		case cmd_ni:
 			pstream >> fline;
-			tex.SetOpticalDensity(fline);
+			tex.Ni = fline;
 			break;
 		case cmd_d:
 			pstream >> fline;
-			tex.SetDissolve(fline);
+			tex.d = fline;
 			break;
 		case cmd_illum:
 			//Ignored
-			// 
-			//pstream >> iline;
-			//tex.SetIllum(iline);
 			break;
 
 
@@ -329,34 +402,8 @@ bool Assets::ParseFromMtlFile(std::string path, bool severity)
 	}
 	if (!tex.Empty())
 	{
-		m_textureMap.try_emplace(tex.GetId(), tex);
+		m_textureMap.try_emplace(currentTexID, tex);
 	}
 	return file.eof();
 	//Fstream is automatically closed on destruction
-}
-
-std::array<float, 3> Assets::MakeFXYZ(std::istringstream& pstream)
-{
-	std::array<float, 3> f_xyz = {};
-	for (int i = 0; i < 3; i++)
-	{
-		pstream >> f_xyz[i];
-	}
-	return f_xyz;
-}
-std::array<float, 2> Assets::MakeFXY(std::istringstream& pstream)
-{
-	std::array<float, 2> f_xy = {};
-	for (int i = 0; i < 2; i++)
-	{
-		pstream >> f_xy[i];
-	}
-	return f_xy;
-}
-void Assets::AddMesh(Mesh mesh, int indiceSize)
-{
-	//Adds or overwrites the mesh based on ID to map
-	mesh.SetIndiceCount(indiceSize);
-	m_meshMap.try_emplace(mesh.GetId(), mesh);
-	mesh.Clear();
 }

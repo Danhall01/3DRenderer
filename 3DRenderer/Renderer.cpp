@@ -3,7 +3,10 @@
 
 #include <d3dcompiler.h>
 #include <DirectXMath.h>
-#define BYTEWIDTH_MAX D3D11_REQ_CONSTANT_BUFFER_ELEMENT_COUNT
+
+constexpr auto MESH_MAX_SIZE = 20'000;
+constexpr auto BYTEWIDTH_VERTEX_MAX = sizeof(Vertex) * MESH_MAX_SIZE;
+constexpr auto BYTEWIDTH_INDEX_MAX = sizeof(int) * MESH_MAX_SIZE;
 
 #include <assert.h>
 #include <comdef.h>
@@ -31,9 +34,14 @@ void Renderer::CreateDXCam(float x, float y, float z, float fovDegrees, float as
 	m_dxCam = Camera(x, y, z, fovDegrees, aspectRatio, nearZ, farZ);
 }
 const Camera& Renderer::GetDXCamera() const { return m_dxCam; }
+
 void Renderer::AddDXCamPos(float x, float y, float z)
 {
 	m_dxCam.AddPosition(x, y, z);
+}
+void Renderer::RotateDXCam(float x, float y, float z)
+{
+	m_dxCam.AddRotation(x,y,z);
 }
 
 // Rendering Manager
@@ -299,7 +307,7 @@ bool Renderer::BuildVertexBuffer()
 	vertexDesc.Usage               = D3D11_USAGE_DYNAMIC;
 	vertexDesc.BindFlags           = D3D11_BIND_VERTEX_BUFFER;
 	vertexDesc.CPUAccessFlags      = D3D11_CPU_ACCESS_WRITE;
-	vertexDesc.ByteWidth           = BYTEWIDTH_MAX;
+	vertexDesc.ByteWidth           = BYTEWIDTH_VERTEX_MAX;
 	vertexDesc.StructureByteStride = 0;
 	vertexDesc.MiscFlags           = 0;
 
@@ -317,7 +325,7 @@ bool Renderer::BuildIndexBuffer()
 	indexDesc.Usage               = D3D11_USAGE_DYNAMIC;
 	indexDesc.BindFlags           = D3D11_BIND_INDEX_BUFFER;
 	indexDesc.CPUAccessFlags      = D3D11_CPU_ACCESS_WRITE;
-	indexDesc.ByteWidth           = BYTEWIDTH_MAX;
+	indexDesc.ByteWidth           = BYTEWIDTH_INDEX_MAX;
 	indexDesc.StructureByteStride = 0;
 	indexDesc.MiscFlags           = 0;
 
@@ -328,32 +336,36 @@ bool Renderer::BuildIndexBuffer()
 	);
 	return SUCCEEDED(m_hr);
 }
-bool Renderer::UpdateVertexBuffer(Assets& asset)
+bool Renderer::UpdateVertexBuffer(Mesh& mesh)
 {
+#if _DEBUG
+	assert(mesh.GetVertexByteWidth() < BYTEWIDTH_VERTEX_MAX);
+#endif
 	D3D11_MAPPED_SUBRESOURCE mResource = {};
 	// Take pointer from GPU
 	m_hr = m_dContext->Map(m_vertexBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mResource);
-
 	memcpy(
 		mResource.pData,
-		asset.GetVertexData(),
-		asset.GetVertexByteWidth()
+		mesh.GetVertexData(),
+		mesh.GetVertexByteWidth()
 	);
 
 	// Give pointer back to GPU
 	m_dContext->Unmap(m_vertexBuffer.Get(), 0);
 	return SUCCEEDED(m_hr);
 }
-bool Renderer::UpdateIndexBuffer(Assets& asset)
+bool Renderer::UpdateIndexBuffer(Mesh& mesh)
 {
+#if _DEBUG
+	assert(mesh.GetIndexByteWidth() < BYTEWIDTH_INDEX_MAX);
+#endif
 	D3D11_MAPPED_SUBRESOURCE mResource = {};
 	// Take pointer from GPU
 	m_hr = m_dContext->Map(m_indexBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mResource);
-
 	memcpy(
 		mResource.pData,
-		asset.GetIndexData(),
-		asset.GetIndexByteWidth()
+		mesh.GetIndexData(),
+		mesh.GetIndexByteWidth()
 	);
 
 	// Give pointer back to GPU
@@ -364,10 +376,15 @@ bool Renderer::UpdateIndexBuffer(Assets& asset)
 
 inline void Renderer::infoDump(unsigned line)
 {
+#if _DEBUG
 	// Gets the last known error and throws
 	_com_error error(m_hr);
 	LPCTSTR errorText = error.ErrorMessage();
 	_wassert(errorText, _CRT_WIDE(__FILE__), line);
+#else
+	assert(1);
+#endif
+
 }
 
 
@@ -416,6 +433,14 @@ void Renderer::Draw(std::vector< std::pair<std::string, dx::XMMATRIX> > drawTarg
 	UINT stride = sizeof(Vertex);
 	UINT offset = 0;
 	unsigned char flag = 0; // Default
+
+	//Once per present
+	m_dContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	m_dContext->RSSetViewports(1, &m_viewport);
+	m_dContext->OMSetRenderTargets(1, m_rtv.GetAddressOf(), m_dsv.Get());
+
+	// PS - Set Light constant buffer
+
 	// Go through assets
 	for (auto& asset : m_assets)
 	{
@@ -423,11 +448,6 @@ void Renderer::Draw(std::vector< std::pair<std::string, dx::XMMATRIX> > drawTarg
 		flag = asset.first;
 		int inputlayout = (int)((flag & 0b11110000) >> 4);
 		int shaderSet = (int)(flag & 0b00001111);
-
-
-		if (!UpdateIndexBuffer(asset.second)) { infoDump((unsigned)__LINE__); return; }
-		if (!UpdateVertexBuffer(asset.second)) { infoDump((unsigned)__LINE__); return; }
-
 
 		// Set Shaders
 		m_dContext->VSSetShader(m_shaders[shaderSet].vertexShader.Get(), nullptr, 0);
@@ -439,26 +459,15 @@ void Renderer::Draw(std::vector< std::pair<std::string, dx::XMMATRIX> > drawTarg
 
 		//IA
 		m_dContext->IASetInputLayout(m_inputLayout[inputlayout].Get());
-		m_dContext->IASetVertexBuffers(0, 1, m_vertexBuffer.GetAddressOf(), &stride, &offset);
-		m_dContext->IASetIndexBuffer(m_indexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0); // UINT == 32 bit
-		m_dContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-
 
 		//VS
-
-
+				
 		//RS
-		m_dContext->RSSetViewports(1, &m_viewport);
-
+				
 		//PS
-		    // Set Light constant buffer
-
+		
 		//OM
-		m_dContext->OMSetRenderTargets(1, m_rtv.GetAddressOf(), m_dsv.Get());
 
-
-		// Draw all the used meshes in asset
 		Mesh mesh = {};
 		for (int i = 0; i < drawTargets.size(); i++)
 		{
@@ -467,15 +476,26 @@ void Renderer::Draw(std::vector< std::pair<std::string, dx::XMMATRIX> > drawTarg
 				//Per mesh updates
 				if (!UpdateVertexConstantBuffer(drawTargets[i].second)) { infoDump((unsigned)__LINE__); return; }
 				m_dContext->VSSetConstantBuffers(0, 1, m_vConstBuffer.GetAddressOf());
-				// Set constant buffer with material data and texture data (PS buffer)
+				
+				if (!UpdateVertexBuffer(mesh)) { infoDump((unsigned)__LINE__); return; }
+				if (!UpdateIndexBuffer(mesh)) { infoDump((unsigned)__LINE__); return; }
+				m_dContext->IASetVertexBuffers(0, 1, m_vertexBuffer.GetAddressOf(), &stride, &offset);
+				m_dContext->IASetIndexBuffer(m_indexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0); // UINT == 32 bit
+				
+				Texture tex = {};
+				for (auto& submesh : mesh.GetSubmeshMap())
+				{
+					//Per submesh updates
+					asset.second.GetTexture(submesh.second.textureId, tex);
+						// Set constant buffer with material data and texture data (PS buffer)
 
-
-				//Drawcall
-				m_dContext->DrawIndexed(
-					mesh.GetIndiceCount(),
-					mesh.GetIndiceStartIndex(),
-					mesh.GetVerticeStartIndex()
-				);
+					//Drawcall
+					m_dContext->DrawIndexed(
+						submesh.second.indiceCount,
+						submesh.second.indiceStartIndex,
+						submesh.second.verticeStartIndex
+					);
+				}
 			}
 		}
 	}

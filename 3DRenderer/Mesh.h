@@ -1,5 +1,6 @@
 #pragma once
 #include <vector>
+#include <unordered_map>
 #include <array>
 #include <string>
 #include <DirectXMath.h>
@@ -18,33 +19,29 @@ public:
 	void Clear();
 
 	//Setters
-	void SetIndiceCount(unsigned int count);
-	void SetIndiceStartIndex(unsigned int count);
-	void SetVerticeStartIndex(unsigned int count);
-
-	void SetId(std::string id);
-	void SetTextureId(std::string id);
-
+	bool AddSubmesh(const std::string& id, Submesh& submesh);
+	
 
 	//Getters
-	std::string GetId() const;
-	std::string GetTextureId() const;
-	unsigned int GetIndiceCount() const;
+	bool GetSubmesh(const std::string& submeshID, Submesh& submesh) const;
+	const std::unordered_map<std::string, Submesh>& GetSubmeshMap() const;
 
-	unsigned int GetVerticeStartIndex() const;
-	unsigned int GetIndiceStartIndex() const;
+	int GetIndiceSize() const;
+	void AddIndice(int indice);
+	void AddVertice(const Vertex& vertice);
+
+	// Grouped Data
+	const Vertex* GetVertexData() const;
+	const UINT GetVertexByteWidth() const;
+	const int* GetIndexData() const;
+	const UINT GetIndexByteWidth() const;
 
 private:
 	//Container info
-	std::string m_id;
+	std::vector<int> m_indiceList;
+	std::vector<Vertex> m_verticeList;
+	std::unordered_map<std::string, Submesh> m_submeshMap;
 
-	/*    SUBMESH TODO            */
-	std::string m_textureid;
-	//Data
-	unsigned int m_indiceCount;
-	unsigned int m_indiceStartIndex;
-	unsigned int m_verticeStartIndex;
-	/*                            */
 public: //D3D11 stuff
 	void SetMatrix(const dx::XMMATRIX& matrix);
 	const dx::XMMATRIX& GetMatrix() const;

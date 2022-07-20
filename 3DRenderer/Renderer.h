@@ -30,6 +30,7 @@ public:
 
 	const Camera& GetDXCamera() const;
 	void AddDXCamPos(float x, float y, float z);
+	void RotateDXCam(float x, float y, float z);
 
 	// bool Build(HWND window) ...
 	bool Build(wWindow window);
@@ -64,8 +65,8 @@ private:
 	// Index / Vertex buffer functions
 	bool BuildVertexBuffer();
 	bool BuildIndexBuffer();
-	bool UpdateVertexBuffer(Assets& asset);
-	bool UpdateIndexBuffer(Assets& asset);
+	bool UpdateVertexBuffer(Mesh& mesh);
+	bool UpdateIndexBuffer(Mesh& mesh);
 
 	// Mesh Helper Functions
 	bool BuildVertexConstantBuffer();
