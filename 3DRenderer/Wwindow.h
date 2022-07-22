@@ -3,6 +3,8 @@
 #include <Windows.h>
 #include <functional>
 
+#define ARRAY
+#include <array>
 
 class wWindow
 {
@@ -15,9 +17,10 @@ public:
 
 	const float GetWindowHeight() const;
 	const float GetWindowWidth() const;
-	const float GetWindowRatio();
-
-
+	const float GetWindowRatio() const;
+#ifdef ARRAY
+	const bool GetCursorPosition(float* data, const UINT& size) const;
+#endif
 	UINT EventManager();
 private:
 	

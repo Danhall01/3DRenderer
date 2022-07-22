@@ -19,6 +19,7 @@ wWindow Renderer::CreateWWindow(HINSTANCE instance, int nCmdShow, std::function<
 }
 
 
+
 //Camera Manager
 void Renderer::CreateDXCam()
 {
@@ -35,14 +36,21 @@ void Renderer::CreateDXCam(float x, float y, float z, float fovDegrees, float as
 }
 const Camera& Renderer::GetDXCamera() const { return m_dxCam; }
 
-void Renderer::AddDXCamPos(float x, float y, float z)
+void Renderer::AddDXCamPos(float right, float up, float forward)
 {
-	m_dxCam.AddPosition(x, y, z);
+	m_dxCam.AddPosition(right, up, forward);
 }
-void Renderer::RotateDXCam(float x, float y, float z)
+void Renderer::RotateDXCam(float pitch, float yaw, float roll)
 {
-	m_dxCam.AddRotation(x,y,z);
+	m_dxCam.AddRotation(pitch, yaw, roll);
 }
+void Renderer::UpdateDXCam()
+{
+	// Aspect ratio change (would require major rebuild)
+	// m_dxCam.UpdateProjectionMatrix(data);
+	m_dxCam.UpdateViewMatrix();
+}
+
 
 // Rendering Manager
 Renderer::Renderer()
@@ -174,7 +182,7 @@ bool Renderer::BuildShadersDefault(ID3DBlob*& out_shaderBlob)
 	wchar_t pxPath[] = L"../x64/Debug/PixelShader.cso";
 	wchar_t vsPath[] = L"../x64/Debug/VertexShader.cso";
 #else
-	wchar_t pxPath[] = L"../x64/Release/PixelShader.sco";
+	wchar_t pxPath[] = L"../x64/Release/PixelShader.cso";
 	wchar_t vsPath[] = L"../x64/Release/VertexShader.cso";
 #endif
 

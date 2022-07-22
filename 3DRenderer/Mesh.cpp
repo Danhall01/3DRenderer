@@ -58,7 +58,7 @@ const std::unordered_map<std::string, Submesh>& Mesh::GetSubmeshMap() const
 
 int Mesh::GetIndiceSize() const
 {
-	return m_indiceList.size();
+	return static_cast<int>(m_indiceList.size());
 }
 void Mesh::AddIndice(int indice)
 {

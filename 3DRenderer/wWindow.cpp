@@ -1,5 +1,5 @@
 #include "Wwindow.h"
-
+#include "Settings.h"
 
 //The event handlers
 UINT wWindow::EventManager()
@@ -31,7 +31,6 @@ void DefaultEvent(MSG& msg)
 
 	case WM_KEYUP:
 		break;
-
 
 	default:
 		break;
@@ -69,7 +68,7 @@ wWindow::wWindow(LPCWSTR windowName, HINSTANCE instance, float width, float heig
 	{
 		m_eventFunction = EventFunction;
 	}
-
+	
 	//Init window
 	const wchar_t CLASS_NAME[] = L"Window Class";
 	WNDCLASS wc = { };
@@ -87,6 +86,7 @@ wWindow::wWindow(LPCWSTR windowName, HINSTANCE instance, float width, float heig
 	{
 		exit(1);
 	}
+	ShowCursor(false);
 
 	ShowWindow(m_window, nCmdShow);
 }
@@ -95,4 +95,20 @@ wWindow::~wWindow(){}
 const HWND& wWindow::Data() const { return m_window; }
 const float wWindow::GetWindowHeight() const { return m_windowHeight; }
 const float wWindow::GetWindowWidth() const { return m_windowWidth; }
-const float wWindow::GetWindowRatio() {	return (float)(m_windowWidth) / (float)(m_windowHeight); }
+const float wWindow::GetWindowRatio() const { return (float)(m_windowWidth) / (float)(m_windowHeight); }
+
+#ifdef ARRAY
+const bool wWindow::GetCursorPosition(float* data, const UINT& size) const
+{
+	if (size >= 2)
+	{
+		POINT cursorPos = {};
+		GetCursorPos(&cursorPos);
+		data[0] = static_cast<float>(cursorPos.x) - BASE_WINDOW_WIDTH / 2.0f;
+		data[1] = static_cast<float>(cursorPos.y) - static_cast<int>(BASE_WINDOW_HEIGHT / 2.0f);
+		SetCursorPos(static_cast<int>(BASE_WINDOW_WIDTH / 2.0f), static_cast<int>(BASE_WINDOW_HEIGHT / 2.0f));
+		return true;
+	}
+	return false;
+}
+#endif

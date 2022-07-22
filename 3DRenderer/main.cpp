@@ -20,7 +20,6 @@ static bool forward;
 static bool backward;
 static bool left;
 static bool right;
-//static float mouseMovement[2];
 
 //Keybind manager (Should come from the game engine)
 void keyDown(WPARAM key)
@@ -104,9 +103,7 @@ void keyEvents(MSG& msg)
 		break;
 
 		// ========= MISC EVENTS =========
-		// Get normalized vector from mouse position
-		// Reset mouse position to center
-		// Move camera in that direction
+
 
 	default:
 		break;
@@ -127,6 +124,7 @@ int APIENTRY wWinMain(
 	if (!renderer.Build(hWindow))
 		return 1;
 
+	std::array<float, 2> cursorPos = {};
 	std::vector<std::string> inFiles = {
 		"../External Resources/SceneObjects/",
 		"Cube_triangulated.obj",
@@ -145,11 +143,9 @@ int APIENTRY wWinMain(
 	dx::XMMATRIX matrixMonkey = dx::XMMatrixIdentity();
 	matrixMonkey *= dx::XMMatrixRotationY(60);
 	matrixMonkey *= dx::XMMatrixTranslation(0, 0, 5);
-
 	drawable.push_back({ monkey, matrixMonkey });
 
-	float speedMultiplier = 0.13f;
-	
+
 	using clock = std::chrono::high_resolution_clock;
 	std::chrono::nanoseconds elapsedTime(0ns);
 	auto startTime = clock::now();
@@ -164,13 +160,26 @@ int APIENTRY wWinMain(
 		{
 			//Update game logic
 			if (right || left || up || down || forward || backward)
+			{
 				renderer.AddDXCamPos( //Move the camera
-					speedMultiplier * right - speedMultiplier * left,
-					speedMultiplier * up - speedMultiplier * down,
-					speedMultiplier * forward - speedMultiplier * backward
-				);
-			renderer.RotateDXCam(0, 0, 0);
-			
+					(float)right   - left,
+					(float)up      - down,
+					(float)forward - backward);
+			}
+			if (hWindow.Data() == GetForegroundWindow())
+			{
+				hWindow.GetCursorPosition(cursorPos.data(), static_cast<UINT>(cursorPos.size()));
+				if (cursorPos[0] != 0 && cursorPos[0] < hWindow.GetWindowWidth() / 2 ||
+					cursorPos[1] != 0 && cursorPos[1] < hWindow.GetWindowHeight() /2 )
+				{
+					renderer.RotateDXCam(
+						cursorPos[1],
+						cursorPos[0],
+						0
+					);
+				}
+			}
+			renderer.UpdateDXCam();
 
 			//Render
 			renderer.Draw(drawable);

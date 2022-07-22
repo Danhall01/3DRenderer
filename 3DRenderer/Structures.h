@@ -1,6 +1,6 @@
 #pragma once
 #include <array>
-
+#include <string>
 #include <wrl/client.h>
 using namespace Microsoft;
 #include <d3d11.h>

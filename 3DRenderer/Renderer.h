@@ -29,8 +29,9 @@ public:
 	void CreateDXCam(float x, float y, float z, float fovDegrees, float aspectRatio, float nearZ, float farZ);
 
 	const Camera& GetDXCamera() const;
-	void AddDXCamPos(float x, float y, float z);
-	void RotateDXCam(float x, float y, float z);
+	void AddDXCamPos(float right, float up, float forward);
+	void RotateDXCam(float pitch, float yaw, float roll);
+	void UpdateDXCam();
 
 	// bool Build(HWND window) ...
 	bool Build(wWindow window);
