@@ -18,19 +18,29 @@ Requirements:
 
 Shader Flags:
    Shader Inputlayout
-0b 0000   0000 :  Default  Default
-0b
-0b
-0b
-
-Default: Deferred rendering
+0b 0000  | 0000       : Deferred shaders | pos normal tex
 
 
-TODO:
-- Set up deferred (G-buffer)
-- Texture buffer
+
+
+
+TODO (bigger picture):
 - Light buffer
-- ...
-- Submesh partitioning of the geometrical data for an arbitrary amount of submeshes (OBJ-parser)
+- Shadow Mapping
+- LOD
+- Frustum Culling
+- particle system
+- cubemaping
+- Showcase tools
 
-~ Draw(string)
+TODO (Polish)
+- Create an input class for main (camera movement)
+- Optimize OBJ parser
+- Create a Timer class
+- Move DrawTargets into the renderer
+- Remove all braches in render loop during release mode
+- Remove gbuffer and instead load directly into the arrays
+
+TODO (now):
+- phong lighting for every light for each compute shader
+- add light to scene

@@ -5,8 +5,17 @@
 #include <string>
 #include <map>
 #include <unordered_set>
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
 //Help on maps & switch strings by article https://www.codeguru.com/cplusplus/switch-on-strings-in-c/
 //By CodeGuru Staff
+
+
+
+
+
+#define DEFAULT_MAP_KA "DEFAULTCLR"
+#define DEFAULT_MAP_LIGHT "LIGHT"
 
 //Bind strings to enum to allow for lookup tables
 enum CMDVal
@@ -27,9 +36,11 @@ enum CMDVal
 	cmd_ns,
 	cmd_ka,
 	cmd_kd,
-	cmd_mapKd,
 	cmd_ks,
 	cmd_ke,
+	cmd_mapKd,
+	cmd_mapKs,
+	cmd_mapKa,
 	cmd_ni,
 	cmd_d,
 	cmd_illum,
@@ -52,17 +63,48 @@ static const std::map<std::string, CMDVal> s_CMD = {
 	{"Ns", cmd_ns},
 	{"Ka", cmd_ka},
 	{"Kd", cmd_kd},
-	{"map_Kd", cmd_mapKd},
 	{"Ks", cmd_ks},
 	{"Ke", cmd_ke},
+	{"map_Kd", cmd_mapKd},
+	{"map_Ks", cmd_mapKs},
+	{"map_Ka", cmd_mapKa},
 	{"Ni", cmd_ni},
 	{"d", cmd_d},
 	{"illum", cmd_illum}
 };
 
 Assets::Assets() 
-{}
-Assets::~Assets() {}
+{
+	Image defaultClrImg = {};
+	Image lightImg = {};
+	//       width * height * channels
+	int area = 1024 * 1024 * 4;
+	defaultClrImg.img = new unsigned char[area];
+	defaultClrImg.channels = 4;
+	defaultClrImg.height = 1024;
+	defaultClrImg.width = 1024;
+	std::fill(defaultClrImg.img, defaultClrImg.img + area, static_cast<unsigned char>(187));
+
+
+	lightImg.img = new unsigned char[area];
+	lightImg.channels = 4;
+	lightImg.height = 1024;
+	lightImg.width = 1024;
+	std::fill_n(lightImg.img, area, static_cast<unsigned char>(253));
+
+	m_images.try_emplace(DEFAULT_MAP_KA, defaultClrImg);
+	m_images.try_emplace(DEFAULT_MAP_LIGHT, lightImg);
+}
+Assets::~Assets() 
+{
+	for (auto& images : m_images)
+	{
+		if (images.second.img != nullptr)
+		{
+			stbi_image_free(images.second.img);
+		}
+	}
+}
 
 // Data getters
 bool Assets::GetMesh(std::string meshId, Mesh& mesh) const
@@ -79,7 +121,16 @@ const std::unordered_map<std::string, Mesh> Assets::GetMeshMap() const
 	return m_meshMap;
 }
 
-bool Assets::GetTexture(std::string texId, Texture& texture) const
+bool Assets::GetTextureData(const std::string& texId, TextureData& texture) const
+{
+	if (m_textureMap.count(texId) > 0)
+	{
+		texture = m_textureMap.at(texId).Data();
+		return true;
+	}
+	return false;
+}
+bool Assets::GetTexture(const std::string& texId, Texture& texture) const
 {
 	if (m_textureMap.count(texId) > 0)
 	{
@@ -91,6 +142,25 @@ bool Assets::GetTexture(std::string texId, Texture& texture) const
 const std::unordered_map<std::string, Texture> Assets::GetTextureMap() const
 {
 	return m_textureMap;
+}
+
+bool Assets::GetImage(std::string imgId, Image& img) const
+{
+	if (m_images.count(imgId) > 0)
+	{
+		img = m_images.at(imgId);
+		return true;
+	}
+	return false;
+}
+const std::unordered_map<std::string, Image> Assets::GetImageMap() const
+{
+	return m_images;
+}
+
+void Assets::Clear()
+{
+	m_images.clear();
 }
 
 
@@ -117,7 +187,7 @@ void Assets::AddMesh(const std::string& meshID, Mesh& mesh)
 {
 	m_meshMap.try_emplace(meshID, mesh);
 }
-void Assets::ParseMesh(Mesh& mesh,
+inline void Assets::ParseMesh(Mesh& mesh,
 	const std::vector<std::string>& indiceStrVec,
 	const std::unordered_map<std::string, int>& indexCountMap,
 	const std::vector<std::array<float, 3>>& posList,
@@ -156,6 +226,14 @@ void Assets::ParseMesh(Mesh& mesh,
 	}
 
 }
+
+inline void Assets::LoadToImage(const std::string& path, const std::string& filename)
+{
+	Image image = {};
+	image.img = stbi_load((path + filename).c_str(), &image.width, &image.height, &image.channels, 4);
+	m_images.try_emplace(filename, image);
+}
+
 
 //Parsers
 bool Assets::ParseFromObjFile(std::string path, std::string filename, bool severity)
@@ -280,8 +358,8 @@ bool Assets::ParseFromObjFile(std::string path, std::string filename, bool sever
 			while (!pstream.eof())
 			{
 				pstream >> word;
-				if (indexCountMap.try_emplace(word, indexCountMap.size()).second)
-				{}
+				indexCountMap.try_emplace(word, static_cast<int>(indexCountMap.size()));
+
 				indiceStrVec.push_back(word);
 				++currentIndexSize;
 				++indexCount;
@@ -291,7 +369,7 @@ bool Assets::ParseFromObjFile(std::string path, std::string filename, bool sever
 		//Texture manager
 		case cmd_mtllib:
 			pstream >> word;
-			if (!ParseFromMtlFile(path + word, severity))
+			if (!ParseFromMtlFile(path, word, severity))
 				return false;
 			break;
 		case cmd_usemtl:
@@ -327,9 +405,9 @@ bool Assets::ParseFromObjFile(std::string path, std::string filename, bool sever
 	return file.eof();
 	//Fstream is automatically closed on destruction
 }
-bool Assets::ParseFromMtlFile(std::string path, bool severity)
+bool Assets::ParseFromMtlFile(std::string path, std::string filename, bool severity)
 {
-	std::ifstream file(path, std::ifstream::in);
+	std::ifstream file(path + filename, std::ifstream::in);
 	if (!file.is_open())
 	{
 		return false;
@@ -350,48 +428,65 @@ bool Assets::ParseFromMtlFile(std::string path, bool severity)
 
 		float fline = 0;
 		int iline = 0;
+
 		switch (s_CMD.at(cmd))
 		{		
 		case cmd_comment:
 			continue;
 		case cmd_newmtl:
-			if (!tex.Empty())
+			if (!tex.Data().Empty())
 			{
 				m_textureMap.try_emplace(currentTexID, tex);
 				tex.Clear();
 			}
 			pstream >> currentTexID;
+			tex.SetImageKa(DEFAULT_MAP_KA);
+			tex.SetImageKd(DEFAULT_MAP_LIGHT);
+			tex.SetImageKs(DEFAULT_MAP_LIGHT);
 			break;
 
 		case cmd_ns:
 			pstream >> fline;
-			tex.Ns = fline;
+			tex.SetNs(fline);
 			break;
 		case cmd_ka:
-			tex.Ka = MakeFXYZ(pstream);
+			tex.SetKa(MakeFXYZ(pstream));
 			break;
 		case cmd_kd:
-			tex.Kd = MakeFXYZ(pstream);
-			break;
-		case cmd_mapKd:
-			// TODO: not yet in use
+			tex.SetKd(MakeFXYZ(pstream));
 			break;
 		case cmd_ks:
-			tex.Ks = MakeFXYZ(pstream);
+			tex.SetKs(MakeFXYZ(pstream));
 			break;
+
+		case cmd_mapKa:
+			pstream >> word;
+			LoadToImage(path, word);
+			tex.SetImageKa(word);
+			break;
+		case cmd_mapKd:
+			pstream >> word;
+			LoadToImage(path, word);
+			tex.SetImageKd(word);
+			break;
+		case cmd_mapKs:
+			pstream >> word;
+			LoadToImage(path, word);
+			tex.SetImageKs(word);
+			break;
+
+
 		case cmd_ke:
-			tex.Ke = MakeFXYZ(pstream);
+			// Not in use
 			break;
 		case cmd_ni:
-			pstream >> fline;
-			tex.Ni = fline;
+			// Not in use
 			break;
 		case cmd_d:
-			pstream >> fline;
-			tex.d = fline;
+			// Not in use
 			break;
 		case cmd_illum:
-			//Ignored
+			// Not in use
 			break;
 
 

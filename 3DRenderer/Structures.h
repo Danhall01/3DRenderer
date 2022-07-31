@@ -13,19 +13,29 @@ struct Vertex
 	std::array<float, 3> normal;
 	std::array<float, 2> uv;
 };
-struct Texture
+struct TextureData
 {
 	float Ns;
 	std::array<float, 3> Ka;
 	std::array<float, 3> Kd;
 	std::array<float, 3> Ks;
-	std::array<float, 3> Ke;
-	float Ni;
-	float d;
+	float padding[2];
 
 	bool Empty() const
 	{
-		return Ka[0] == 0 && Kd[0] == 0 && Ks[0] == 0 && Ke[0] == 0;
+		return (Ns == 0 &&
+			Ka[0] == 0 &&
+			Ka[1] == 0 &&
+			Ka[2] == 0 &&
+
+			Kd[0] == 0 &&
+			Kd[1] == 0 &&
+			Kd[2] == 0 &&
+
+			Ks[0] == 0 &&
+			Ks[1] == 0 &&
+			Ks[2] == 0
+			);
 	}
 	void Clear()
 	{
@@ -33,10 +43,14 @@ struct Texture
 		Ka.fill(0);
 		Kd.fill(0);
 		Ks.fill(0);
-		Ke.fill(0);
-		Ni = 0;
-		d = 0;
 	}
+};
+struct Image
+{
+	unsigned char* img;
+	int width;
+	int height;
+	int channels;
 };
 struct Submesh
 {
@@ -63,7 +77,7 @@ struct WVPMatrix
 	dx::XMMATRIX ViewMatrix;
 	dx::XMMATRIX ProjectionMatrix;
 };
-struct shaderSet
+struct ShaderSet
 {
 	//Shaders
 	WRL::ComPtr<ID3D11VertexShader>     vertexShader;
@@ -73,4 +87,10 @@ struct shaderSet
 	WRL::ComPtr<ID3D11PixelShader>      pixelShader;
 
 	WRL::ComPtr<ID3D11ComputeShader>    computeShader;
+};
+struct GraphicsBuffer
+{
+	WRL::ComPtr<ID3D11Texture2D> texture;
+	WRL::ComPtr<ID3D11RenderTargetView> renderTargetView;
+	WRL::ComPtr<ID3D11ShaderResourceView> shaderResourceView;
 };

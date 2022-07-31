@@ -13,6 +13,7 @@
 using namespace std::chrono_literals;
 constexpr std::chrono::nanoseconds timeLock(16ms);
 
+/// =============== Could be a class for input ===================
 //Gloabal variables for keybinds
 static bool up;
 static bool down;
@@ -110,7 +111,7 @@ void keyEvents(MSG& msg)
 	}
 	return;
 }
-
+/// ==============================================================
 
 int APIENTRY wWinMain(
 	_In_     HINSTANCE   hInstance,
@@ -128,7 +129,9 @@ int APIENTRY wWinMain(
 	std::vector<std::string> inFiles = {
 		"../External Resources/SceneObjects/",
 		"Cube_triangulated.obj",
-		"monkey.obj"
+		"monkey.obj",
+		"sphere.obj",
+		"landscape.obj"
 	};
 	renderer.ParseObj(inFiles, 0);
 
@@ -137,7 +140,18 @@ int APIENTRY wWinMain(
 	
 	std::string rect = "Cube_Cube.001";
 	dx::XMMATRIX matrix = dx::XMMatrixIdentity();
+	matrix *= dx::XMMatrixTranslation(-5, 0, 0);
 	drawable.push_back({rect, matrix});
+
+	std::string floor = "Cylinder";
+	dx::XMMATRIX floormatrix = dx::XMMatrixIdentity();
+	floormatrix *= dx::XMMatrixTranslation(0, -2, 0) * 
+		dx::XMMatrixScaling(50, 2, 50);
+	drawable.push_back({ floor, floormatrix });
+
+	std::string sphere = "Sphere";
+	dx::XMMATRIX sphereMatrix = dx::XMMatrixTranslation(5, 1, 0);
+	drawable.push_back({ sphere, sphereMatrix });
 
 	std::string monkey = "Suzanne";
 	dx::XMMATRIX matrixMonkey = dx::XMMatrixIdentity();
@@ -182,8 +196,8 @@ int APIENTRY wWinMain(
 			renderer.UpdateDXCam();
 
 			//Render
-			renderer.Draw(drawable);
-
+			renderer.DrawDeferred(drawable, hWindow);
+			renderer.Render();
 			//Catch up the loop
 			elapsedTime -= timeLock;
 		}

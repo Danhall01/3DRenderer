@@ -1,33 +1,32 @@
-//#pragma once
-//#include <vector>
-//#include <array>
-//#include <DirectXMath.h>
-//
-//
-//class Light
-//{
-//public:
-//  Light();
-//  Light(std::array<float,3> pos, std::array<float, 3> clr, float shininess);
-//	Light(std::array<float,3> pos, std::array<float, 3> clr, float shininess, DirectX::XMMATRIX transform);
-//	~Light();
-//
-//	const Light& GetLightData() const;
-//
-//	void SetTransformMatrix(DirectX::XMMATRIX transform);
-//	void SetColor(float clr[3]);
-//	void SetShininess(float shi);
-//
-//private:
-//	//FRÅGA
-//	// Flyttar sig ljuset i worldspace eller i viewspace?
-//	//
-//
-//private:
-//	float _Position[3];
-//	float _Color[3];
-//	float _Shininess;
-//	DirectX::XMMATRIX _Transform;
-//
-//};
-//
+#pragma once
+#include <DirectXMath.h>
+#include "Structures.h"
+#include <array>
+
+class Light
+{
+public:
+	Light();
+	~Light();
+
+
+	void SetMatrix(const dx::XMMATRIX& matrix);
+	const dx::XMMATRIX& GetMatrix() const;
+
+	void SetColor(std::array<float, 3> clr);
+	const std::array<float, 3>& GetColor() const;
+
+	void SetPosition(std::array<float, 3> pos);
+	const std::array<float, 3>& GetPosition() const;
+
+
+private:
+	
+
+private:
+	std::array<float, 3> m_position;
+	std::array<float, 3> m_color;
+	dx::XMMATRIX m_matrix;
+
+};
+

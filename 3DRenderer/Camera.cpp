@@ -55,7 +55,6 @@ void Camera::UpdateProjectionMatrix(float fovDegrees, float aspectRatio, float n
 }
 
 
-
 void Camera::AddPosition(float right, float up, float forward)
 {
 	// Move right, up, forward relative to the rotation of the camera
@@ -75,7 +74,6 @@ void Camera::AddPosition(float right, float up, float forward)
 	};
 
 }
-
 void Camera::AddRotation(float pitch, float yaw, float roll)
 {
 	// pitch - clamp (no spinning)
