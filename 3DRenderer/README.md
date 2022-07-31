@@ -7,31 +7,23 @@ Email: Danne.01@hotmail.com
 Discord: Dan_#0001
 
 Requirements:
-	[ ]Deferred rendering
-	[ ]Shadow mapping
-	[ ]Level of detail using tessellation
-	[x]OBJ-parser
-	[ ]Dynamic cubic environment mapping
-	[ ]Frustum culling using a quadtree/octree
-	[ ]GPU-based billboarded particle system (rain)
+	[x] Deferred rendering
+	[ ] Shadow mapping
+	[ ] Level of detail using tessellation
+	[x] OBJ-parser
+	[ ] Frustum culling using a quadtree/octree
+	[ ] Dynamic cubic environment mapping
+	[ ] GPU-based billboarded particle system (rain)
 
 
 Shader Flags:
    Shader Inputlayout
 0b 0000  | 0000       : Deferred shaders | pos normal tex
 
+Light types
+0 : spotlight
+1 : directional Light
 
-
-
-
-TODO (bigger picture):
-- Light buffer
-- Shadow Mapping
-- LOD
-- Frustum Culling
-- particle system
-- cubemaping
-- Showcase tools
 
 TODO (Polish)
 - Create an input class for main (camera movement)
@@ -42,5 +34,8 @@ TODO (Polish)
 - Remove gbuffer and instead load directly into the arrays
 
 TODO (now):
-- phong lighting for every light for each compute shader
+- Create light UAV with structured buffer
+- Create spotlight
+- Create directional light
 - add light to scene
+- phong lighting for every light for each compute shader

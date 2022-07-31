@@ -49,6 +49,7 @@ public:
 
 	//Renderer manager
 	void DrawDeferred(std::vector< std::pair<std::string, dx::XMMATRIX> >& drawTargets, const wWindow& window);
+	bool UpdateLighting(std::vector<Light>& lightTargets);
 	void Render();
 private:
 	// Renderer Helper Functions
@@ -89,6 +90,9 @@ private:
 	bool BuildTextureBuffer();
 	bool UpdateTextureBuffer(const TextureData& texture);
 
+	// Lights Helper Functions
+	bool BuildLightBuffer();
+
 	// Image Helper functions
 	bool UpdateImageMap();
 private:
@@ -122,12 +126,14 @@ private: //D3D11 VARIABLES
 
 	//Deferred rendering
 	static constexpr UINT BUFFER_COUNT = 5;
-	GraphicsBuffer                              m_gbuffer[BUFFER_COUNT];
-	WRL::ComPtr<ID3D11UnorderedAccessView>      m_uav;
-	WRL::ComPtr<ID3D11DepthStencilView>         m_dsv;
-
-	ID3D11RenderTargetView* m_deferredRTVOutput[BUFFER_COUNT] = {};
-	ID3D11ShaderResourceView* m_deferredSRVInput[BUFFER_COUNT] = {};
+	std::vector<WRL::ComPtr<ID3D11UnorderedAccessView>> m_uav; // swapchainBuffer
+	GraphicsBuffer                                      m_gbuffer[BUFFER_COUNT];
+	WRL::ComPtr<ID3D11DepthStencilView>                 m_dsv;
+	WRL::ComPtr<ID3D11RenderTargetView>                 m_deferredRTVOutput[BUFFER_COUNT] = {};
+	WRL::ComPtr<ID3D11ShaderResourceView>               m_deferredSRVInput[BUFFER_COUNT+1] = {}; // +1 = lights
+	// Lighting
+	WRL::ComPtr<ID3D11Buffer>                           m_lightCount;
+	WRL::ComPtr<ID3D11Buffer>                           m_lightBuffer;
 
 	// Tips and tricks (Constant buffer)
 	// Source: https://developer.nvidia.com/content/constant-buffers-without-constant-pain-0

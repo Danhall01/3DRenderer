@@ -10,10 +10,6 @@
 //Help on maps & switch strings by article https://www.codeguru.com/cplusplus/switch-on-strings-in-c/
 //By CodeGuru Staff
 
-
-
-
-
 #define DEFAULT_MAP_KA "DEFAULTCLR"
 #define DEFAULT_MAP_LIGHT "LIGHT"
 
@@ -116,7 +112,7 @@ bool Assets::GetMesh(std::string meshId, Mesh& mesh) const
 	}
 	return false;
 }
-const std::unordered_map<std::string, Mesh> Assets::GetMeshMap() const
+const std::unordered_map<std::string, Mesh>& Assets::GetMeshMap() const
 {
 	return m_meshMap;
 }
@@ -139,7 +135,7 @@ bool Assets::GetTexture(const std::string& texId, Texture& texture) const
 	}
 	return false;
 }
-const std::unordered_map<std::string, Texture> Assets::GetTextureMap() const
+const std::unordered_map<std::string, Texture>& Assets::GetTextureMap() const
 {
 	return m_textureMap;
 }
@@ -153,7 +149,7 @@ bool Assets::GetImage(std::string imgId, Image& img) const
 	}
 	return false;
 }
-const std::unordered_map<std::string, Image> Assets::GetImageMap() const
+const std::unordered_map<std::string, Image>& Assets::GetImageMap() const
 {
 	return m_images;
 }
@@ -229,9 +225,11 @@ inline void Assets::ParseMesh(Mesh& mesh,
 
 inline void Assets::LoadToImage(const std::string& path, const std::string& filename)
 {
+	if (m_images.count(filename) > 0)
+		return;
 	Image image = {};
 	image.img = stbi_load((path + filename).c_str(), &image.width, &image.height, &image.channels, 4);
-	m_images.try_emplace(filename, image);
+	m_images.emplace(filename, image);
 }
 
 
@@ -263,7 +261,6 @@ bool Assets::ParseFromObjFile(std::string path, std::string filename, bool sever
 	std::vector<std::array<float, 2>> uvList;
 	std::vector<std::string> indiceStrVec;
 	
-
 	while (file.good())
 	{
 		std::getline(file, line);
@@ -400,7 +397,6 @@ bool Assets::ParseFromObjFile(std::string path, std::string filename, bool sever
 		AddMesh(currentMeshId, mesh);
 		//currentIndexSize = 0;
 	}
-	
 
 	return file.eof();
 	//Fstream is automatically closed on destruction

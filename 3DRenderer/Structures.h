@@ -13,6 +13,25 @@ struct Vertex
 	std::array<float, 3> normal;
 	std::array<float, 2> uv;
 };
+struct Submesh
+{
+	std::string textureId;
+	//Data
+	unsigned int indiceCount;
+	unsigned int indiceStartIndex;
+	unsigned int verticeStartIndex;
+	void Clear()
+	{
+		textureId.clear();
+		indiceCount = 0;
+		indiceStartIndex = 0;
+		verticeStartIndex = 0;
+	}
+	bool Empty() const
+	{
+		return indiceCount == 0;
+	}
+};
 struct TextureData
 {
 	float Ns;
@@ -52,24 +71,19 @@ struct Image
 	int height;
 	int channels;
 };
-struct Submesh
+struct Light
 {
-	std::string textureId;
-	//Data
-	unsigned int indiceCount;
-	unsigned int indiceStartIndex;
-	unsigned int verticeStartIndex;
-	void Clear()
-	{
-		textureId.clear();
-		indiceCount = 0;
-		indiceStartIndex = 0;
-		verticeStartIndex = 0;
-	}
-	bool Empty() const
-	{
-		return indiceCount == 0;
-	}
+	// X Y Z Type
+	// For types see README file
+	std::array<float, 4> Position_Type;
+	// R G B Intensity
+	std::array<float, 4> Color_Intensity;
+	// X Y Z Range
+	std::array<float, 4> Direction_Range;
+};
+struct LightCData
+{
+	std::array<UINT, 4> count;
 };
 struct WVPMatrix
 {

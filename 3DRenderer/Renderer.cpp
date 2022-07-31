@@ -5,8 +5,10 @@
 #include <DirectXMath.h>
 
 constexpr auto MESH_MAX_SIZE = 90'000;
+constexpr auto LIGHT_MAX_COUNT = 10;
 constexpr auto BYTEWIDTH_VERTEX_MAX = sizeof(Vertex) * MESH_MAX_SIZE;
 constexpr auto BYTEWIDTH_INDEX_MAX = sizeof(int) * MESH_MAX_SIZE;
+constexpr auto BYTEWIDTH_LIGHT_MAX = sizeof(Light) * LIGHT_MAX_COUNT;
 
 #include <assert.h>
 #include <comdef.h>
@@ -24,7 +26,7 @@ wWindow Renderer::CreateWWindow(HINSTANCE instance, int nCmdShow, std::function<
 void Renderer::CreateDXCam()
 {
 	//Some default settings
-	m_dxCam = Camera(0, 0, 0, 90.0f, BASE_WINDOW_RATIO, 0.1f, 100.0f);
+	m_dxCam = Camera(0, 0, 0, 90.0f, BASE_WINDOW_RATIO, 0.1f, 300.0f);
 }
 void Renderer::CreateDXCam(const DirectX::XMVECTOR& pos, float fovDegrees, float aspectRatio, float nearZ, float farZ)
 {
@@ -94,15 +96,18 @@ bool Renderer::Build(wWindow window)
 	if (!BuildUnorderedAccessView(window))     { infoDump((unsigned)__LINE__); return false; }
 	if (!BuildGraphBuffer(window))             { infoDump((unsigned)__LINE__); return false; }
 	for (int i = 0; i < BUFFER_COUNT; i++)
-	{
-		m_deferredRTVOutput[i] = m_gbuffer[i].renderTargetView.Get();
-		m_deferredSRVInput[i] = m_gbuffer[i].shaderResourceView.Get();
+	                                           {
+		m_deferredRTVOutput[i] = m_gbuffer[i].renderTargetView;
+		m_deferredSRVInput[i] = m_gbuffer[i].shaderResourceView;
 	}
+
+	//Lighting
+	if (!BuildLightBuffer())                   { infoDump((unsigned)__LINE__); return false; }
+
 
 	shaderBlob->Release();
 	return true;
 }
-
 
 // D3D11
 bool Renderer::BuildDeviceAndSwapChain(const wWindow& window)
@@ -316,6 +321,96 @@ bool Renderer::BuildSampler()
 	return SUCCEEDED(m_hr);
 }
 
+// Lights
+bool Renderer::BuildLightBuffer()
+{
+	// Build SRV for light
+	D3D11_BUFFER_DESC bufferDesc = {};
+	bufferDesc.BindFlags           = D3D11_BIND_SHADER_RESOURCE;
+	bufferDesc.Usage               = D3D11_USAGE_DYNAMIC;
+	bufferDesc.CPUAccessFlags      = D3D11_CPU_ACCESS_WRITE;
+	bufferDesc.ByteWidth           = BYTEWIDTH_LIGHT_MAX;
+	bufferDesc.StructureByteStride = sizeof(Light);
+	bufferDesc.MiscFlags           = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+
+	m_hr = m_device->CreateBuffer(
+		&bufferDesc,
+		NULL,
+		m_lightBuffer.GetAddressOf());
+	if (FAILED(m_hr))
+		return false;
+
+	D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+	srvDesc.Format              = DXGI_FORMAT_UNKNOWN;
+	srvDesc.ViewDimension       = D3D11_SRV_DIMENSION_BUFFER;
+	srvDesc.Buffer.FirstElement = 0;
+	srvDesc.Buffer.NumElements = LIGHT_MAX_COUNT;
+
+	m_hr = m_device->CreateShaderResourceView(
+		m_lightBuffer.Get(),
+		&srvDesc,
+		m_deferredSRVInput[BUFFER_COUNT].GetAddressOf());
+	if (FAILED(m_hr))
+		return false;
+
+
+	// Build cBuffer for count
+	D3D11_BUFFER_DESC cbufferDesc = {};
+	cbufferDesc.Usage               = D3D11_USAGE_DYNAMIC;
+	cbufferDesc.BindFlags           = D3D11_BIND_CONSTANT_BUFFER;
+	cbufferDesc.CPUAccessFlags      = D3D11_CPU_ACCESS_WRITE;
+	cbufferDesc.ByteWidth           = sizeof(LightCData);
+	cbufferDesc.StructureByteStride = 0;
+	cbufferDesc.MiscFlags           = 0;
+
+	LightCData data = {};
+	data.count.fill(0);
+
+	D3D11_SUBRESOURCE_DATA subData = {};
+	subData.pSysMem          = &data;
+	subData.SysMemPitch      = 0;
+	subData.SysMemSlicePitch = 0;
+
+	m_hr = m_device->CreateBuffer(
+		&cbufferDesc,
+		&subData,
+		m_lightCount.GetAddressOf()
+	);
+	return SUCCEEDED(m_hr);
+}
+bool Renderer::UpdateLighting(std::vector<Light>& lightTargets)
+{
+	if (lightTargets.size() > LIGHT_MAX_COUNT)
+		return false;
+	// Update lighting buffer
+	D3D11_MAPPED_SUBRESOURCE m_ResourceSRV = {};
+	m_hr = m_immediateContext->Map(m_lightBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &m_ResourceSRV);
+	if (FAILED(m_hr))
+		return false;
+	memcpy(
+		m_ResourceSRV.pData,
+		lightTargets.data(),
+		sizeof(Light) * lightTargets.size()
+	);
+	m_immediateContext->Unmap(m_lightBuffer.Get(), 0);
+
+
+
+	// Update lightCount cbuffer
+	D3D11_MAPPED_SUBRESOURCE mResourceCbuffer = {};
+	LightCData lightData = {};
+	lightData.count.fill(static_cast<UINT>(lightTargets.size()));
+	m_hr = m_immediateContext->Map(m_lightCount.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mResourceCbuffer);
+	if (FAILED(m_hr))
+		return false;
+	memcpy(
+		mResourceCbuffer.pData,
+		&lightData,
+		sizeof(LightCData)
+	);
+	m_immediateContext->Unmap(m_lightCount.Get(), 0);
+	return true;
+}
 
 
 // Buffers
@@ -377,7 +472,7 @@ bool Renderer::UpdateIndexBuffer(Mesh& mesh)
 {
 #if _DEBUG
 	assert(mesh.GetIndexByteWidth() < BYTEWIDTH_INDEX_MAX);
-#endif
+#endif 
 	D3D11_MAPPED_SUBRESOURCE mResource = {};
 	// Take pointer from GPU
 	m_hr = m_immediateContext->Map(m_indexBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mResource);
@@ -546,8 +641,11 @@ bool Renderer::BuildGraphBuffer(const wWindow& window)
 }
 bool Renderer::BuildUnorderedAccessView(const wWindow& window)
 {
-	ID3D11Resource* backbuffer = nullptr;
-	m_hr = m_swapChain->GetBuffer(0, __uuidof(ID3D11Resource), reinterpret_cast<void**>(&backbuffer));
+	if (m_uav.size() > 0)
+		return false;
+	WRL::ComPtr<ID3D11UnorderedAccessView> tempUAV;
+	WRL::ComPtr<ID3D11Resource> backbuffer;
+	m_hr = m_swapChain->GetBuffer(0, __uuidof(ID3D11Resource), reinterpret_cast<void**>(backbuffer.GetAddressOf()));
 	if (FAILED(m_hr))
 		return false;
 
@@ -555,11 +653,11 @@ bool Renderer::BuildUnorderedAccessView(const wWindow& window)
 	UAVDesc.Format        = DXGI_FORMAT_R8G8B8A8_UNORM;
 	UAVDesc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE2D;
 	m_hr = m_device->CreateUnorderedAccessView(
-		backbuffer,
+		backbuffer.Get(),
 		&UAVDesc,
-		m_uav.GetAddressOf()
+		tempUAV.GetAddressOf()
 	);
-	backbuffer->Release();
+	m_uav.push_back(tempUAV);
 	return SUCCEEDED(m_hr);
 }
 
@@ -630,8 +728,9 @@ void Renderer::DrawDeferred(std::vector< std::pair<std::string, dx::XMMATRIX> >&
 	// Clear input textures
 	ID3D11ShaderResourceView* nullSRV[BUFFER_COUNT] = { nullptr };
 	m_immediateContext->CSSetShaderResources(0, BUFFER_COUNT, nullSRV);
+
 	// OM
-	m_immediateContext->OMSetRenderTargets(BUFFER_COUNT, m_deferredRTVOutput, m_dsv.Get());
+	m_immediateContext->OMSetRenderTargets(BUFFER_COUNT, m_deferredRTVOutput[0].GetAddressOf(), m_dsv.Get());
 
 	for (auto& asset : m_assets)
 	{
@@ -655,14 +754,16 @@ void Renderer::DrawDeferred(std::vector< std::pair<std::string, dx::XMMATRIX> >&
 	// CS
 	m_immediateContext->CSSetShader(m_shaders[0].computeShader.Get(), nullptr, 0);
 	m_immediateContext->CSSetSamplers(0, 1, m_samplerState.GetAddressOf());
-	m_immediateContext->CSSetUnorderedAccessViews(0, 1, m_uav.GetAddressOf(), 0);
-	m_immediateContext->CSSetShaderResources(0, BUFFER_COUNT, m_deferredSRVInput);
+	m_immediateContext->CSSetUnorderedAccessViews(0, 1, m_uav[0].GetAddressOf(), 0);
+	m_immediateContext->CSSetShaderResources(0, (BUFFER_COUNT + 1), m_deferredSRVInput[0].GetAddressOf());
+	m_immediateContext->CSSetConstantBuffers(0, 1, m_lightCount.GetAddressOf());
 
 	m_immediateContext->Dispatch(
 		static_cast<int>(window.GetWindowWidth() / 16), 
 		static_cast<int>(window.GetWindowHeight() / 16),
 		1);
 }
+
 void Renderer::Render()
 {
 	m_swapChain->Present(1, 0);
@@ -672,7 +773,7 @@ void Renderer::ClearBuffer()
 	float bgColor[4] = { 0.0f, 0.0f, 0.0f, 0 };
 	m_immediateContext->ClearRenderTargetView(m_rtv.Get(), bgColor);
 	m_immediateContext->ClearDepthStencilView(m_dsv.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1, 0);
-	m_immediateContext->ClearUnorderedAccessViewFloat(m_uav.Get(), &bgColor[0]);
+	m_immediateContext->ClearUnorderedAccessViewFloat(m_uav[0].Get(), &bgColor[0]);
 
 	for (int i = 0; i < BUFFER_COUNT; i++)
 	{

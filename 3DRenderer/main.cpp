@@ -113,12 +113,20 @@ void keyEvents(MSG& msg)
 }
 /// ==============================================================
 
+// Funny
+#define RANDOM_CUBES 1
+
 int APIENTRY wWinMain(
 	_In_     HINSTANCE   hInstance,
 	_In_opt_ HINSTANCE   hPrevInstance,
 	_In_     LPWSTR      lpCmdLine,
 	_In_     int         nCmdShow)
 {
+#if RANDOM_CUBES
+	// REMOVE ===================
+	srand(1234567890);
+	// ==========================
+#endif
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 	Renderer renderer;
 	wWindow hWindow = renderer.CreateWWindow(hInstance, nCmdShow, keyEvents);
@@ -133,14 +141,19 @@ int APIENTRY wWinMain(
 		"sphere.obj",
 		"landscape.obj"
 	};
-	renderer.ParseObj(inFiles, 0);
+	if (!renderer.ParseObj(inFiles, 0))
+		return 1;
 
+
+
+
+	
 	// Create the render list
 	std::vector<std::pair<std::string, DirectX::XMMATRIX>> drawable;
 	
-	std::string rect = "Cube_Cube.001";
+	std::string rect = "Suzanne";
 	dx::XMMATRIX matrix = dx::XMMatrixIdentity();
-	matrix *= dx::XMMatrixTranslation(-5, 0, 0);
+	matrix *= dx::XMMatrixTranslation(-15, 0, 0);
 	drawable.push_back({rect, matrix});
 
 	std::string floor = "Cylinder";
@@ -158,6 +171,9 @@ int APIENTRY wWinMain(
 	matrixMonkey *= dx::XMMatrixRotationY(60);
 	matrixMonkey *= dx::XMMatrixTranslation(0, 0, 5);
 	drawable.push_back({ monkey, matrixMonkey });
+
+	
+
 
 
 	using clock = std::chrono::high_resolution_clock;
@@ -194,6 +210,19 @@ int APIENTRY wWinMain(
 				}
 			}
 			renderer.UpdateDXCam();
+#if RANDOM_CUBES
+			// REMOVE ===================
+			// Spawn a random cube
+			if (drawable.size() < 100)
+			{
+				std::string spawnable = "Cube_Cube.001";
+				dx::XMMATRIX spawnableMatrix = dx::XMMatrixIdentity();
+				spawnableMatrix *= dx::XMMatrixTranslation(rand() % 300, rand() % 300, rand() % 300);
+				drawable.push_back({ spawnable, spawnableMatrix });
+			}
+			drawable[0].second *= dx::XMMatrixRotationY(0.01f);
+			// ==========================
+#endif
 
 			//Render
 			renderer.DrawDeferred(drawable, hWindow);

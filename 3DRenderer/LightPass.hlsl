@@ -5,6 +5,7 @@
 
 #define WINDOW_WIDTH 1024.0f
 #define WINDOW_HEIGHT 576.0f
+sampler sState;
 
 // Output
 RWTexture2D<float4> UAC : register(u0);
@@ -16,43 +17,38 @@ Texture2D<float4> in_normal      : register(t2); // X Y Z
 Texture2D<float4> in_diffuseClr  : register(t3); // R G B
 Texture2D<float4> in_specularClr : register(t4); // R G B
 
-sampler sState;
 //Lights
-//struct light
-//{
-    
-//};
-//StructuredBuffer<light> lightBuffer;
-
-
-// Bind all the lights as buffers (StructuredBuffer) using an SRV to light array
-
-[numthreads(16, 16, 1)]
-void main( uint3 threadID : SV_DispatchThreadID )
+struct light
 {
-    // Transform coordinates into UNORM coords
-    float2 texcoord = float2(
-        threadID.x / (WINDOW_WIDTH - 1.0f),
-        threadID.y / (WINDOW_HEIGHT - 1.0f)
-    );
-    // Load all the data from samplers
-    float4 finalColor = float4(0.0f, 0.0f, 0.0f, 1.0f);
-    float4 ambientClr = in_clr.SampleLevel(sState, texcoord, 0);
-    if ((ambientClr.r + ambientClr.g + ambientClr.b) == 0)
-    {
-        UAC[threadID.xy] = finalColor;
-        return;
-    }
-    
-    float4 wspos = in_wspos.SampleLevel(sState, texcoord, 0);
-    float3 normal = in_normal.SampleLevel(sState, texcoord, 0).xyz;
-    float3 diffuseClr = in_diffuseClr.SampleLevel(sState, texcoord, 0).xyz;
-    float3 specularClr = in_specularClr.SampleLevel(sState, texcoord, 0).xyz;
-    float Shinyness = ambientClr.w;
-    ambientClr.w = 1.0f;
-    
+    float4 lightPosType;
+    float4 lightClrIntensity;
+    float4 lightDirRange;
+};
+StructuredBuffer<light> lightBuffer : register(t5);
+cbuffer lightingData : register(b0)
+{
+    uint4 count;
+};
+
+
+float2 PhongLightingSpot(uint dataIndex, float2 coord)
+{
     // Light pass
-    finalColor += float4(ambientClr.xyz, 0.0f);
+    float ambient;
+    float specular;
+    float2 finalColor = float2(0.0f, 0.0f);
+    
+    return finalColor;
+    
+    //float4 wspos          = in_wspos.SampleLevel(sState, coord, 0);
+    //float3 normal         = in_normal.SampleLevel(sState, coord, 0);
+    //float  Shinyness      = in_clr.SampleLevel(sState, coord, 0).w;
+    //float3 lightpos       = lightBuffer[dataIndex].lightPosType.xyz;
+    //float3 lightclr       = lightBuffer[dataIndex].lightClrIntensity.xyz;
+    //float  lightIntensity = lightBuffer[dataIndex].lightClrIntensity.w;
+    //float3 lightDir       = lightBuffer[dataIndex].lightDirRange.xyz;
+    //float  lightRange     = lightBuffer[dataIndex].lightDirRange.w;
+    
     // ============================= OLD PS SHADER ===================================
     //float4 finalColor;
     //float3 L = normalize((lightPos - input.wsPos).xyz);
@@ -76,7 +72,58 @@ void main( uint3 threadID : SV_DispatchThreadID )
     //finalColor = tex.Sample(sState, input.textureCord) * float4((ambient + diffuse + specular), 1.0f);
     //return saturate(finalColor);
     // ===============================================================================
+}
+float2 PhongLightingDirectional(uint dataIndex, float2 coord)
+{
+    // Light pass
+    float ambient;
+    float specular;
+    float2 finalColor = float2(0.0f, 0.0f);
     
+    return finalColor;
     
-    UAC[threadID.xy] = finalColor;
+}
+
+
+[numthreads(16, 16, 1)]
+void main( uint3 threadID : SV_DispatchThreadID )
+{
+    // Transform coordinates into normalised coords
+    float2 texcoord = float2(
+        threadID.x / (WINDOW_WIDTH - 1.0f),
+        threadID.y / (WINDOW_HEIGHT - 1.0f)
+    );
+    // Early return
+    float4 ambientClr = in_clr.SampleLevel(sState, texcoord, 0);
+    if ((ambientClr.r + ambientClr.g + ambientClr.b) == 0)
+    {
+        UAC[threadID.xy] = float4(0.0f, 0.0f, 0.0f, 1.0f);
+        return;
+    }
+    
+    float3 diffuseClr = in_diffuseClr.SampleLevel(sState, texcoord, 0).xyz;
+    float3 specularClr = in_specularClr.SampleLevel(sState, texcoord, 0).xyz;
+       
+    float4 lighting = float4(0.0f, 0.0f, 0.0f, 1.0f);
+    for (uint i = 0; i < count.x; i++)
+    {
+        // Sample light
+        float type = lightBuffer[i].lightPosType.w;
+        
+        
+        if ( type == 0 )
+        {
+            lighting.yz += PhongLightingSpot(i, texcoord);
+        }
+        else if (type == 1)
+        {
+            lighting.yz += PhongLightingDirectional(i, texcoord);
+        }
+    }
+    UAC[threadID.xy] = float4(
+        ambientClr.xyz +
+        diffuseClr * lighting.r +
+        specularClr * lighting.g,
+    1.0f
+    );;
 }

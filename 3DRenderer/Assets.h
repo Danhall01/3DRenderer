@@ -24,14 +24,14 @@ public:
 
 	
 	bool GetMesh(std::string meshId, Mesh& mesh) const;
-	const std::unordered_map<std::string, Mesh> GetMeshMap() const;
+	const std::unordered_map<std::string, Mesh>& GetMeshMap() const;
 
 	bool GetTextureData(const std::string& texId, TextureData& texture) const;
 	bool GetTexture(const std::string& texId, Texture& texture) const;
-	const std::unordered_map<std::string, Texture> GetTextureMap() const;
+	const std::unordered_map<std::string, Texture>& GetTextureMap() const;
 
 	bool GetImage(std::string imgId, Image& img) const;
-	const std::unordered_map<std::string, Image> GetImageMap() const;
+	const std::unordered_map<std::string, Image>& GetImageMap() const;
 
 	// Clears the image map preemptively: OBS! Unless a copy is saved, image allocations will be lost
 	void Clear();
