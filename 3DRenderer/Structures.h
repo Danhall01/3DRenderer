@@ -88,6 +88,7 @@ struct LightCData
 struct WVPMatrix
 {
 	dx::XMMATRIX WorldMatrix;
+	dx::XMMATRIX NormalWMatrix;
 	dx::XMMATRIX ViewMatrix;
 	dx::XMMATRIX ProjectionMatrix;
 };

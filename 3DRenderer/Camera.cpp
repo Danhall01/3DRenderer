@@ -36,6 +36,15 @@ Camera Camera::operator=(const Camera& otherCam)
 const DirectX::XMMATRIX& Camera::GetViewMatrix() const { return m_viewMatrix; }
 const DirectX::XMMATRIX& Camera::GetProjectionMatrix() const { return m_projectionMatrix; }
 
+const dx::XMFLOAT3& Camera::GetPositionFloat3() const
+{
+	return m_position;
+}
+const dx::XMFLOAT3& Camera::GetRotationFloat3() const
+{
+	return m_rotation;
+}
+
 void Camera::UpdateViewMatrix()
 {
 	const dx::XMVECTOR lookatVector =

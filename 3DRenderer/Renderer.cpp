@@ -4,7 +4,7 @@
 #include <d3dcompiler.h>
 #include <DirectXMath.h>
 
-constexpr auto MESH_MAX_SIZE = 90'000;
+constexpr auto MESH_MAX_SIZE = 250'000;
 constexpr auto LIGHT_MAX_COUNT = 10;
 constexpr auto BYTEWIDTH_VERTEX_MAX = sizeof(Vertex) * MESH_MAX_SIZE;
 constexpr auto BYTEWIDTH_INDEX_MAX = sizeof(int) * MESH_MAX_SIZE;
@@ -207,6 +207,7 @@ bool Renderer::BuildVertexConstantBuffer()
 
 	WVPMatrix matrix = {
 		dx::XMMatrixIdentity(),
+		dx::XMMatrixIdentity(),
 		m_dxCam.GetViewMatrix(),
 		m_dxCam.GetProjectionMatrix()
 	};
@@ -224,8 +225,12 @@ bool Renderer::BuildVertexConstantBuffer()
 }
 bool Renderer::UpdateVertexConstantBuffer(const Mesh& mesh)
 {
+	dx::XMVECTOR det = dx::XMMatrixDeterminant(mesh.GetMatrix());
 	WVPMatrix wvpMatrix = {
 		dx::XMMatrixTranspose(mesh.GetMatrix()),
+		dx::XMMatrixInverse(
+			&det, 
+			dx::XMMatrixTranspose(mesh.GetMatrix())),
 		dx::XMMatrixTranspose(m_dxCam.GetViewMatrix()),
 		dx::XMMatrixTranspose(m_dxCam.GetProjectionMatrix())
 	};
@@ -246,8 +251,16 @@ bool Renderer::UpdateVertexConstantBuffer(const Mesh& mesh)
 }
 bool Renderer::UpdateVertexConstantBuffer(dx::XMMATRIX& matrix)
 {
+	dx::XMVECTOR det = dx::XMMatrixDeterminant(matrix);
 	WVPMatrix wvpMatrix = {
 		dx::XMMatrixTranspose(matrix),
+		
+			dx::XMMatrixInverse(
+				&det,
+				matrix
+        ),
+
+
 		dx::XMMatrixTranspose(m_dxCam.GetViewMatrix()),
 		dx::XMMatrixTranspose(m_dxCam.GetProjectionMatrix())
 	};
@@ -321,7 +334,7 @@ bool Renderer::BuildSampler()
 	return SUCCEEDED(m_hr);
 }
 
-// Lights
+// Lighting
 bool Renderer::BuildLightBuffer()
 {
 	// Build SRV for light
@@ -399,7 +412,11 @@ bool Renderer::UpdateLighting(std::vector<Light>& lightTargets)
 	// Update lightCount cbuffer
 	D3D11_MAPPED_SUBRESOURCE mResourceCbuffer = {};
 	LightCData lightData = {};
-	lightData.count.fill(static_cast<UINT>(lightTargets.size()));
+	lightData.count[0] = static_cast<UINT>(m_dxCam.GetPositionFloat3().x);
+	lightData.count[1] = static_cast<UINT>(m_dxCam.GetPositionFloat3().y);
+	lightData.count[2] = static_cast<UINT>(m_dxCam.GetPositionFloat3().z);
+	lightData.count[3] = static_cast<UINT>(lightTargets.size());
+
 	m_hr = m_immediateContext->Map(m_lightCount.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mResourceCbuffer);
 	if (FAILED(m_hr))
 		return false;

@@ -34,8 +34,9 @@ TODO (Polish)
 - Remove gbuffer and instead load directly into the arrays
 
 TODO (now):
-- Create light UAV with structured buffer
-- Create spotlight
-- Create directional light
-- add light to scene
-- phong lighting for every light for each compute shader
+- Shadow mapping
+
+- Do normal application initialization (create device and output swap chain).
+- Create shadow map render target (probably good to start out with the R32 DXGI format texture)
+- For frame rendering, do the shadow pass and write only depth into the shadow map. The view/projection matrices are determined by the location and nature of your light.
+- Then bind your output render target, and bind the shadow map as a shader resource view to your pixel shader. Sample it and do the depth comparison to determine if it is in shadow or not.

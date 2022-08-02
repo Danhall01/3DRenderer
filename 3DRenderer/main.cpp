@@ -153,13 +153,14 @@ int APIENTRY wWinMain(
 	
 	std::string rect = "Suzanne";
 	dx::XMMATRIX matrix = dx::XMMatrixIdentity();
-	matrix *= dx::XMMatrixTranslation(-15, 0, 0);
+
 	drawable.push_back({rect, matrix});
 
-	std::string floor = "Cylinder";
+	std::string floor = "Cube_Cube.001";
 	dx::XMMATRIX floormatrix = dx::XMMatrixIdentity();
-	floormatrix *= dx::XMMatrixTranslation(0, -2, 0) * 
-		dx::XMMatrixScaling(50, 2, 50);
+	floormatrix *=
+		dx::XMMatrixScaling(20, 2, 15) *
+		dx::XMMatrixTranslation(0, -10, 0);
 	drawable.push_back({ floor, floormatrix });
 
 	std::string sphere = "Sphere";
@@ -172,10 +173,48 @@ int APIENTRY wWinMain(
 	matrixMonkey *= dx::XMMatrixTranslation(0, 0, 5);
 	drawable.push_back({ monkey, matrixMonkey });
 
-	
+
+
+	// Lighting
+	std::vector<Light> lightVector;
+	Light lightTest = {};
+	lightTest.Position_Type   = { 5.0f, 5.0f, 0.0f, 0.0f };
+	lightTest.Color_Intensity = { 0.8f, 0.3f, 0.1f, 0.5f };
+	lightTest.Direction_Range = { 0.0f, -1.0f, 0.0f, 20.0f};
+	lightVector.push_back(lightTest);
+
+	std::string sun = "Suzanne";
+	dx::XMMATRIX sunMatrix = dx::XMMatrixScaling(0.1f, 0.1f, 0.1f) *
+		dx::XMMatrixTranslation(lightTest.Position_Type[0], lightTest.Position_Type[1], lightTest.Position_Type[2]);
+	drawable.push_back({ sun, sunMatrix });
+
+	Light lightTest2 = {};
+	lightTest2.Position_Type = { -15.0f, 5.0f, 0.0f, 0.0f };
+	lightTest2.Color_Intensity = { 0.3f, 0.8f, 0.2f, 0.5f };
+	lightTest2.Direction_Range = { 0.0f, -1.0f, 0.0f, 20.0f };
+	lightVector.push_back(lightTest2);
+
+	std::string sun2 = "Suzanne";
+	dx::XMMATRIX sunMatrix2 = dx::XMMatrixScaling(0.1f, 0.1f, 0.1f) *
+		dx::XMMatrixTranslation(lightTest2.Position_Type[0], lightTest2.Position_Type[1], lightTest2.Position_Type[2]);
+	drawable.push_back({ sun2, sunMatrix2 });
+
+	Light lightTest3 = {};
+	lightTest3.Position_Type = { 0.0f, 0.0f, 0.0f, 1.0f };
+	lightTest3.Color_Intensity = { 1.0f, 1.0f, 1.0f, 0.5f };
+	lightTest3.Direction_Range = { 0.5f, -0.5f, 0.0f, 0.0f };
+	lightVector.push_back(lightTest3);
+
+	std::string sun3 = "Cube_Cube.001";
+	dx::XMMATRIX sunMatrix3 = dx::XMMatrixScaling(0.1f, 0.1f, 0.1f) *
+		dx::XMMatrixTranslation(lightTest3.Position_Type[0], lightTest3.Position_Type[1], lightTest3.Position_Type[2]);
+	drawable.push_back({ sun3, sunMatrix3 });
 
 
 
+
+
+	float iter = 0;
 	using clock = std::chrono::high_resolution_clock;
 	std::chrono::nanoseconds elapsedTime(0ns);
 	auto startTime = clock::now();
@@ -217,14 +256,22 @@ int APIENTRY wWinMain(
 			{
 				std::string spawnable = "Cube_Cube.001";
 				dx::XMMATRIX spawnableMatrix = dx::XMMatrixIdentity();
-				spawnableMatrix *= dx::XMMatrixTranslation(rand() % 300, rand() % 300, rand() % 300);
+				spawnableMatrix *= dx::XMMatrixTranslation(
+					static_cast<float>(rand() % 300), 
+					static_cast<float>(rand() % 300), 
+					static_cast<float>(rand() % 300));
 				drawable.push_back({ spawnable, spawnableMatrix });
 			}
-			drawable[0].second *= dx::XMMatrixRotationY(0.01f);
+			drawable[0].second = dx::XMMatrixRotationY( dx::XM_PI /180 * 90)
+				* dx::XMMatrixTranslation(-15, 0, 0)
+				* dx::XMMatrixRotationY(dx::XM_PI / 180 * 0.5f * iter);
 			// ==========================
+
+			iter++;
 #endif
 
 			//Render
+			renderer.UpdateLighting(lightVector);
 			renderer.DrawDeferred(drawable, hWindow);
 			renderer.Render();
 			//Catch up the loop
