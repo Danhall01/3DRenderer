@@ -5,7 +5,8 @@
 
 #define WINDOW_WIDTH 1024.0f
 #define WINDOW_HEIGHT 576.0f
-sampler sState;
+sampler sState : register(s0);
+sampler shadowState : register(s1);
 
 // Output
 RWTexture2D<float4> UAC : register(u0);
@@ -17,12 +18,15 @@ Texture2D<float4> in_normal      : register(t2); // X Y Z Ns
 Texture2D<float4> in_diffuseClr  : register(t3); // R G B Kd
 Texture2D<float4> in_specularClr : register(t4); // R G B Ks
 
+Texture2DArray<float> in_shadowMap : register(t6); // Depth
+
 //Lights
 struct light
 {
     float4 lightPosType;
     float4 lightClrIntensity;
     float4 lightDirRange;
+    float4 lightCosOuterInnerSMapCount;
 };
 StructuredBuffer<light> lightBuffer : register(t5);
 cbuffer lightingData : register(b0)
@@ -116,7 +120,7 @@ void main( uint3 threadID : SV_DispatchThreadID )
     );
     // Early return
     float4 ambientClr = in_clr.SampleLevel(sState, texcoord, 0);
-    if ((ambientClr.r + ambientClr.g + ambientClr.b) == 0)
+    if ( (ambientClr.r + ambientClr.g + ambientClr.b) == 0)
     {
         UAC[threadID.xy] = float4(0.0f, 0.0f, 0.0f, 1.0f);
         return;
@@ -147,10 +151,12 @@ void main( uint3 threadID : SV_DispatchThreadID )
         if ( type == 0 ) // Spot Light
         {
             float3 lightDir = (-1) * normalize(lightBuffer[i].lightDirRange.xyz);
+            float cosOuter = lightBuffer[i].lightCosOuterInnerSMapCount.x;
+            float cosInner = lightBuffer[i].lightCosOuterInnerSMapCount.y;
             
             lighting += SpotLight(lightpos, lightDir, wspos.xyz, CamPosLightCount.xyz, 
                                     normal, diffuseClr, specularClr,
-                                    Shininess, lightIntensity, cos(3.14/2), cos(3.14f / 4), 
+                                    Shininess, lightIntensity, cosOuter, cosInner,
                                     lightRange, lightclr);
         }
         else if (type == 1) // Directional Light
@@ -173,5 +179,4 @@ void main( uint3 threadID : SV_DispatchThreadID )
         1.0f
     ));
     return;
-    // ambientclr * ambient + diffuseClr * diffuse + specularClr * specular, 1.0f     
 }

@@ -3,6 +3,7 @@
 #include "wWindow.h"
 #include "Camera.h"
 #include "Assets.h"
+#include "ShadowLight.h"
 // The API
 #include <d3d11.h>
 // Other libraries
@@ -35,9 +36,8 @@ public:
 	void RotateDXCam(float pitch, float yaw, float roll);
 	void UpdateDXCam();
 
-	// bool Build(HWND window) ...
-	bool Build(wWindow window);
-	// bool BuildShaderAndLayout(wWindow window, UINT assetPack, unsigned char flag); // Flag identifies which layout and shader to use together
+	void AddLight(const Light& light);
+	void AddShadowLight(const Light& light);
 
 	// ===== RENDERING FUNCTIONS
 	//Input manager
@@ -48,8 +48,11 @@ public:
 	);
 
 	//Renderer manager
+	bool Build(wWindow window);
 	void DrawDeferred(std::vector< std::pair<std::string, dx::XMMATRIX> >& drawTargets, const wWindow& window);
-	bool UpdateLighting(std::vector<Light>& lightTargets);
+	void ShadowPass();
+	
+	bool UpdateLighting();
 	void Render();
 private:
 	// Renderer Helper Functions
@@ -92,6 +95,8 @@ private:
 
 	// Lights Helper Functions
 	bool BuildLightBuffer();
+	bool BuildShadowPass(wWindow window);
+
 
 	// Image Helper functions
 	bool UpdateImageMap();
@@ -125,15 +130,25 @@ private: //D3D11 VARIABLES
 	std::vector<WRL::ComPtr<ID3D11InputLayout>> m_inputLayout;
 
 	//Deferred rendering
-	static constexpr UINT BUFFER_COUNT = 5;
+	static constexpr UINT BUFFER_COUNT = 5; // +1 shadow map
 	std::vector<WRL::ComPtr<ID3D11UnorderedAccessView>> m_uav; // swapchainBuffer
 	GraphicsBuffer                                      m_gbuffer[BUFFER_COUNT];
 	WRL::ComPtr<ID3D11DepthStencilView>                 m_dsv;
+	
+	// Ambient color : texture 2d
+	// WS pos        : texture 2d
+	// normal        : texture 2d
+	// diffuse color : texture 2d
+	// specular color: texture 2d
 	WRL::ComPtr<ID3D11RenderTargetView>                 m_deferredRTVOutput[BUFFER_COUNT] = {};
 	WRL::ComPtr<ID3D11ShaderResourceView>               m_deferredSRVInput[BUFFER_COUNT+1] = {}; // +1 = lights
-	// Lighting
+	
+																								 
+																 // Lighting
 	WRL::ComPtr<ID3D11Buffer>                           m_lightCount;
 	WRL::ComPtr<ID3D11Buffer>                           m_lightBuffer;
+	std::vector<Light>                                  m_lightArr;
+	ShadowLight                                         m_shadowlightManager;
 
 	// Tips and tricks (Constant buffer)
 	// Source: https://developer.nvidia.com/content/constant-buffers-without-constant-pain-0

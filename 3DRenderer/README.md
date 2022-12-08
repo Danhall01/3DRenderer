@@ -34,9 +34,9 @@ TODO (Polish)
 - Remove gbuffer and instead load directly into the arrays
 
 TODO (now):
-- Shadow mapping
-
-- Do normal application initialization (create device and output swap chain).
-- Create shadow map render target (probably good to start out with the R32 DXGI format texture)
-- For frame rendering, do the shadow pass and write only depth into the shadow map. The view/projection matrices are determined by the location and nature of your light.
-- Then bind your output render target, and bind the shadow map as a shader resource view to your pixel shader. Sample it and do the depth comparison to determine if it is in shadow or not.
+- remove artifacts from mistake
+- create new VS and PS (empty) for shadow pass
+- Run the shadow pass without Depth Stencil and OM
+- Loop for each light, and add result into shadow map array
+- Gather data in CS and calculate shadows there
+- read: https://takinginitiative.wordpress.com/2011/05/15/directx10-tutorial-10-shadow-mapping/

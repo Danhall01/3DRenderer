@@ -25,6 +25,12 @@
     <Filter Include="Source Files\Graphics">
       <UniqueIdentifier>{c55f6a24-3e91-439b-9c2d-d86a7ab8bf2c}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Resource Files\Shaders">
+      <UniqueIdentifier>{88a40730-7d00-4104-91ad-9f3732a1834d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Resource Files\Misc">
+      <UniqueIdentifier>{64ca592b-7a40-4c96-af43-17d3164204b5}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -48,6 +54,9 @@
     <ClCompile Include="Texture.cpp">
       <Filter>Source Files\Asset</Filter>
     </ClCompile>
+    <ClCompile Include="ShadowLight.cpp">
+      <Filter>Source Files\Asset</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Text Include="README.md" />
@@ -55,9 +64,6 @@
   <ItemGroup>
     <ClInclude Include="wWindow.h">
       <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Settings.h">
-      <Filter>Resource Files</Filter>
     </ClInclude>
     <ClInclude Include="Mesh.h">
       <Filter>Header Files\Asset</Filter>
@@ -71,25 +77,31 @@
     <ClInclude Include="Assets.h">
       <Filter>Header Files\Asset</Filter>
     </ClInclude>
-    <ClInclude Include="Structures.h">
-      <Filter>Resource Files</Filter>
-    </ClInclude>
     <ClInclude Include="Texture.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Structures.h">
+      <Filter>Resource Files\Misc</Filter>
+    </ClInclude>
+    <ClInclude Include="Settings.h">
+      <Filter>Resource Files\Misc</Filter>
+    </ClInclude>
     <ClInclude Include="stb_image.h">
-      <Filter>Resource Files</Filter>
+      <Filter>Resource Files\Misc</Filter>
+    </ClInclude>
+    <ClInclude Include="ShadowLight.h">
+      <Filter>Header Files\Asset</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="PixelShaderDeferred.hlsl">
-      <Filter>Resource Files</Filter>
-    </FxCompile>
     <FxCompile Include="VertexShaderDeferred.hlsl">
-      <Filter>Resource Files</Filter>
+      <Filter>Resource Files\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="PixelShaderDeferred.hlsl">
+      <Filter>Resource Files\Shaders</Filter>
     </FxCompile>
     <FxCompile Include="LightPass.hlsl">
-      <Filter>Resource Files</Filter>
+      <Filter>Resource Files\Shaders</Filter>
     </FxCompile>
   </ItemGroup>
 </Project>

@@ -53,6 +53,15 @@ void Renderer::UpdateDXCam()
 	m_dxCam.UpdateViewMatrix();
 }
 
+void Renderer::AddLight(const Light& light)
+{
+	m_lightArr.push_back(light);
+}
+void Renderer::AddShadowLight(const Light & light)
+{
+	m_shadowlightManager.AddLight(light);
+}
+
 
 // Rendering Manager
 Renderer::Renderer()
@@ -103,7 +112,7 @@ bool Renderer::Build(wWindow window)
 
 	//Lighting
 	if (!BuildLightBuffer())                   { infoDump((unsigned)__LINE__); return false; }
-
+	if (!BuildShadowPass(window))              { infoDump((unsigned)__LINE__); return false; }
 
 	shaderBlob->Release();
 	return true;
@@ -318,13 +327,10 @@ bool Renderer::BuildSampler()
 {
 	D3D11_SAMPLER_DESC samplerDesc = {};
 	samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-	samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_BORDER;
-	samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_BORDER;
-	samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_BORDER;
-	samplerDesc.BorderColor[0] = 0.3f;
-	samplerDesc.BorderColor[1] = 0.3f;
-	samplerDesc.BorderColor[2] = 0.3f;
-	samplerDesc.BorderColor[3] = 0.0f;
+	samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
+	samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+	samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+
 
 	m_hr = m_device->CreateSamplerState(
 		&samplerDesc,
@@ -377,7 +383,7 @@ bool Renderer::BuildLightBuffer()
 	cbufferDesc.MiscFlags           = 0;
 
 	LightCData data = {};
-	data.count.fill(0);
+	data.camPos_count.fill(0);
 
 	D3D11_SUBRESOURCE_DATA subData = {};
 	subData.pSysMem          = &data;
@@ -391,9 +397,16 @@ bool Renderer::BuildLightBuffer()
 	);
 	return SUCCEEDED(m_hr);
 }
-bool Renderer::UpdateLighting(std::vector<Light>& lightTargets)
+bool Renderer::UpdateLighting()
 {
-	if (lightTargets.size() > LIGHT_MAX_COUNT)
+	std::vector<Light> allLight = m_lightArr;
+	std::vector<Light> addVec = m_shadowlightManager.GetLightVec(); // Very suboptimal way to do it
+	for (int i = 0; i < addVec.size(); i++)
+	{
+		allLight.push_back(addVec[i]);
+	}
+	
+	if (allLight.size() > LIGHT_MAX_COUNT)
 		return false;
 	// Update lighting buffer
 	D3D11_MAPPED_SUBRESOURCE m_ResourceSRV = {};
@@ -402,8 +415,8 @@ bool Renderer::UpdateLighting(std::vector<Light>& lightTargets)
 		return false;
 	memcpy(
 		m_ResourceSRV.pData,
-		lightTargets.data(),
-		sizeof(Light) * lightTargets.size()
+		allLight.data(),
+		sizeof(Light) * allLight.size()
 	);
 	m_immediateContext->Unmap(m_lightBuffer.Get(), 0);
 
@@ -412,10 +425,10 @@ bool Renderer::UpdateLighting(std::vector<Light>& lightTargets)
 	// Update lightCount cbuffer
 	D3D11_MAPPED_SUBRESOURCE mResourceCbuffer = {};
 	LightCData lightData = {};
-	lightData.count[0] = static_cast<UINT>(m_dxCam.GetPositionFloat3().x);
-	lightData.count[1] = static_cast<UINT>(m_dxCam.GetPositionFloat3().y);
-	lightData.count[2] = static_cast<UINT>(m_dxCam.GetPositionFloat3().z);
-	lightData.count[3] = static_cast<UINT>(lightTargets.size());
+	lightData.camPos_count[0] = static_cast<UINT>(m_dxCam.GetPositionFloat3().x);
+	lightData.camPos_count[1] = static_cast<UINT>(m_dxCam.GetPositionFloat3().y);
+	lightData.camPos_count[2] = static_cast<UINT>(m_dxCam.GetPositionFloat3().z);
+	lightData.camPos_count[3] = static_cast<UINT>(allLight.size());
 
 	m_hr = m_immediateContext->Map(m_lightCount.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mResourceCbuffer);
 	if (FAILED(m_hr))
@@ -428,6 +441,12 @@ bool Renderer::UpdateLighting(std::vector<Light>& lightTargets)
 	m_immediateContext->Unmap(m_lightCount.Get(), 0);
 	return true;
 }
+bool Renderer::BuildShadowPass(wWindow window)
+{
+	m_hr = m_shadowlightManager.Init(10, m_device.Get(), window);
+	return SUCCEEDED(m_hr);
+}
+
 
 
 // Buffers
@@ -741,10 +760,10 @@ void Renderer::DrawDeferred(std::vector< std::pair<std::string, dx::XMMATRIX> >&
 	m_immediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	m_immediateContext->RSSetViewports(1, &m_viewport);
 	m_immediateContext->PSSetSamplers(0, 1, m_samplerState.GetAddressOf());
-	
+
 	// Clear input textures
-	ID3D11ShaderResourceView* nullSRV[BUFFER_COUNT] = { nullptr };
-	m_immediateContext->CSSetShaderResources(0, BUFFER_COUNT, nullSRV);
+	ID3D11ShaderResourceView* nullSRV[BUFFER_COUNT+1] = { nullptr };
+	m_immediateContext->CSSetShaderResources(0, BUFFER_COUNT+1, nullSRV);
 
 	// OM
 	m_immediateContext->OMSetRenderTargets(BUFFER_COUNT, m_deferredRTVOutput[0].GetAddressOf(), m_dsv.Get());
@@ -771,6 +790,7 @@ void Renderer::DrawDeferred(std::vector< std::pair<std::string, dx::XMMATRIX> >&
 	// CS
 	m_immediateContext->CSSetShader(m_shaders[0].computeShader.Get(), nullptr, 0);
 	m_immediateContext->CSSetSamplers(0, 1, m_samplerState.GetAddressOf());
+	m_immediateContext->CSSetSamplers(1, 1, m_shadowlightManager.GetShadowSamplerPP());
 	m_immediateContext->CSSetUnorderedAccessViews(0, 1, m_uav[0].GetAddressOf(), 0);
 	m_immediateContext->CSSetShaderResources(0, (BUFFER_COUNT + 1), m_deferredSRVInput[0].GetAddressOf());
 	m_immediateContext->CSSetConstantBuffers(0, 1, m_lightCount.GetAddressOf());
@@ -780,6 +800,24 @@ void Renderer::DrawDeferred(std::vector< std::pair<std::string, dx::XMMATRIX> >&
 		static_cast<int>(window.GetWindowHeight() / 16),
 		1);
 }
+void Renderer::ShadowPass()
+{
+	
+	// Disable DS
+
+	// Set up VS and PS
+
+	// Drawcall for each light
+	// Update Cbuffer
+	for (int i = 0; i < m_shadowlightManager.GetLightVec().size(); i++)
+	{
+
+	}
+
+
+	// OM writing to the shadowpass
+}
+
 
 void Renderer::Render()
 {
@@ -827,6 +865,7 @@ void Renderer::RenderDrawTargets(const Assets& currentAsset,
 				textureSRV[0] = m_loadedImages.at(tex.GetImageKa()).Get();
 				textureSRV[1] = m_loadedImages.at(tex.GetImageKd()).Get();
 				textureSRV[2] = m_loadedImages.at(tex.GetImageKs()).Get();
+
 
 				m_immediateContext->PSSetConstantBuffers(0, 1, m_materialBuffer.GetAddressOf());
 				m_immediateContext->PSSetShaderResources(0, 3, textureSRV);

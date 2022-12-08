@@ -174,14 +174,16 @@ int APIENTRY wWinMain(
 	drawable.push_back({ monkey, matrixMonkey });
 
 
+	//########### SCENE ################
 
 	// Lighting
-	std::vector<Light> lightVector;
+	
 	Light lightTest = {};
-	lightTest.Position_Type   = { 5.0f, 5.0f, 0.0f, 0.0f };
+	lightTest.Position_Type   = { 5.0f, 5.0f, 0.0f, LIGHT_TYPE_SPOTLIGHT };
 	lightTest.Color_Intensity = { 0.8f, 0.3f, 0.1f, 0.5f };
 	lightTest.Direction_Range = { 0.0f, -1.0f, 0.0f, 20.0f};
-	lightVector.push_back(lightTest);
+	lightTest.CosOuter_Inner_SMap_count = { static_cast<float>(0/*Cos PI/2*/), static_cast<float>(0.7071/*Cos PI/4*/), 0.0f, 0.0f };
+	renderer.AddLight(lightTest);
 
 	std::string sun = "Suzanne";
 	dx::XMMATRIX sunMatrix = dx::XMMatrixScaling(0.1f, 0.1f, 0.1f) *
@@ -189,10 +191,11 @@ int APIENTRY wWinMain(
 	drawable.push_back({ sun, sunMatrix });
 
 	Light lightTest2 = {};
-	lightTest2.Position_Type = { -15.0f, 5.0f, 0.0f, 0.0f };
+	lightTest2.Position_Type = { -15.0f, 5.0f, 0.0f, LIGHT_TYPE_SPOTLIGHT };
 	lightTest2.Color_Intensity = { 0.3f, 0.8f, 0.2f, 0.5f };
 	lightTest2.Direction_Range = { 0.0f, -1.0f, 0.0f, 20.0f };
-	lightVector.push_back(lightTest2);
+	lightTest2.CosOuter_Inner_SMap_count = { static_cast<float>(0/*Cos PI/2*/), static_cast<float>(0.7071/*Cos PI/4*/), 0.0f, 0.0f};
+	renderer.AddLight(lightTest2);
 
 	std::string sun2 = "Suzanne";
 	dx::XMMATRIX sunMatrix2 = dx::XMMatrixScaling(0.1f, 0.1f, 0.1f) *
@@ -200,17 +203,18 @@ int APIENTRY wWinMain(
 	drawable.push_back({ sun2, sunMatrix2 });
 
 	Light lightTest3 = {};
-	lightTest3.Position_Type = { 0.0f, 0.0f, 0.0f, 1.0f };
+	lightTest3.Position_Type = { 0.0f, 0.0f, 0.0f, LIGHT_TYPE_DIRECTIONAL };
 	lightTest3.Color_Intensity = { 1.0f, 1.0f, 1.0f, 0.5f };
 	lightTest3.Direction_Range = { 0.5f, -0.5f, 0.0f, 0.0f };
-	lightVector.push_back(lightTest3);
+	lightTest3.CosOuter_Inner_SMap_count = { 0.0f, 0.0f, 0.0f, 0.0f };
+	renderer.AddLight(lightTest3);
 
 	std::string sun3 = "Cube_Cube.001";
 	dx::XMMATRIX sunMatrix3 = dx::XMMatrixScaling(0.1f, 0.1f, 0.1f) *
 		dx::XMMatrixTranslation(lightTest3.Position_Type[0], lightTest3.Position_Type[1], lightTest3.Position_Type[2]);
 	drawable.push_back({ sun3, sunMatrix3 });
 
-
+	//########### SCENE END ################
 
 
 
@@ -271,7 +275,8 @@ int APIENTRY wWinMain(
 #endif
 
 			//Render
-			renderer.UpdateLighting(lightVector);
+			renderer.UpdateLighting();
+			renderer.ShadowPass();
 			renderer.DrawDeferred(drawable, hWindow);
 			renderer.Render();
 			//Catch up the loop

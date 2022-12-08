@@ -80,10 +80,12 @@ struct Light
 	std::array<float, 4> Color_Intensity;
 	// X Y Z Range
 	std::array<float, 4> Direction_Range;
+
+	std::array<float, 4> CosOuter_Inner_SMap_count;
 };
 struct LightCData
 {
-	std::array<UINT, 4> count;
+	std::array<UINT, 4> camPos_count;
 };
 struct WVPMatrix
 {
@@ -108,4 +110,11 @@ struct GraphicsBuffer
 	WRL::ComPtr<ID3D11Texture2D> texture;
 	WRL::ComPtr<ID3D11RenderTargetView> renderTargetView;
 	WRL::ComPtr<ID3D11ShaderResourceView> shaderResourceView;
+};
+
+enum lightType
+{
+	LIGHT_TYPE_SPOTLIGHT = 0,
+	LIGHT_TYPE_DIRECTIONAL = 1,
+	LIGHT_TYPE_POINT = 2
 };

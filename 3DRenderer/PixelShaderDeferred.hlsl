@@ -25,7 +25,8 @@ cbuffer Material : register(b0)
 Texture2D mapKa : register(t0);
 Texture2D mapKd : register(t1);
 Texture2D mapKs : register(t2);
-SamplerState sState;
+SamplerState sState : register(s0);
+
 
 
 PSOutput main(PSInput input)
@@ -38,5 +39,6 @@ PSOutput main(PSInput input)
     output.color = float4(mapKa.Sample(sState, input.UV).xyz, Ka.x);
     output.diffuseClr = float4(mapKd.Sample(sState, input.UV).xyz, Kd.x);
     output.specularClr = float4(mapKs.Sample(sState, input.UV).xyz, Ks.x);
-	return output;
+    
+    return output;
 }
