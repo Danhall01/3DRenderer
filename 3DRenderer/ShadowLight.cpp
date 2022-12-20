@@ -15,9 +15,6 @@ ShadowLight::~ShadowLight()
 HRESULT ShadowLight::Init(int limit, ID3D11Device* device, const wWindow& window)
 {
     HRESULT hr = {};
-    if (FAILED(InitSampler(device)))
-        return hr;
-
     if (FAILED(InitShadowMap(device, window)))
         return hr;
     if (FAILED(InitDSV(device)))
@@ -137,12 +134,16 @@ HRESULT ShadowLight::InitDSV(ID3D11Device* device)
 
     for (UINT i = 0; i < SHADOW_MAP_ARRAY_SIZE; ++i)
     {
+        ID3D11DepthStencilView* dsv = {};
+
         dsvDesc.Texture2DArray.FirstArraySlice = i;
         hr = device->CreateDepthStencilView(
             m_shadowMap.Get(),
             &dsvDesc,
-            m_sMapDSV[i].GetAddressOf()
+            &dsv
         );
+
+        m_sMapDSV.push_back(dsv);
 
         if(FAILED(hr))
         {

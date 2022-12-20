@@ -59,7 +59,7 @@ void Renderer::AddLight(const Light& light)
 }
 void Renderer::AddShadowLight(const Light & light)
 {
-	m_shadowlightManager.AddLight(light);
+	m_shadowlightManager.AddLight(light, m_device.Get());
 }
 
 
@@ -790,7 +790,6 @@ void Renderer::DrawDeferred(std::vector< std::pair<std::string, dx::XMMATRIX> >&
 	// CS
 	m_immediateContext->CSSetShader(m_shaders[0].computeShader.Get(), nullptr, 0);
 	m_immediateContext->CSSetSamplers(0, 1, m_samplerState.GetAddressOf());
-	m_immediateContext->CSSetSamplers(1, 1, m_shadowlightManager.GetShadowSamplerPP());
 	m_immediateContext->CSSetUnorderedAccessViews(0, 1, m_uav[0].GetAddressOf(), 0);
 	m_immediateContext->CSSetShaderResources(0, (BUFFER_COUNT + 1), m_deferredSRVInput[0].GetAddressOf());
 	m_immediateContext->CSSetConstantBuffers(0, 1, m_lightCount.GetAddressOf());

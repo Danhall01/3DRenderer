@@ -6,7 +6,6 @@
 #define WINDOW_WIDTH 1024.0f
 #define WINDOW_HEIGHT 576.0f
 sampler sState : register(s0);
-sampler shadowState : register(s1);
 
 // Output
 RWTexture2D<float4> UAC : register(u0);

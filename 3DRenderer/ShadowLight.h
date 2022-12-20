@@ -36,14 +36,10 @@ public:
 	ID3D11ShaderResourceView* GetShadowMapSRV() const;
 	ID3D11ShaderResourceView* const* GetShadowMapSRVPP() const;
 
-	ID3D11SamplerState* GetShadowSampler() const;
-	ID3D11SamplerState* const* GetShadowSamplerPP() const;
-
 
 	HRESULT UpdateCBuffer(int index);
 
 private:
-	HRESULT InitSampler(ID3D11Device* device);
 	HRESULT InitNewCBuffer(ID3D11Device* device);
 
 
