@@ -1,6 +1,13 @@
 #include "ShadowLight.h"
+
+constexpr int SHADOW_MAP_ARRAY_SIZE = 3;// spot, point, directional
+
 ShadowLight::ShadowLight()
-{}
+{
+    // Set up the DXCams
+
+
+}
 
 ShadowLight::~ShadowLight()
 {}
@@ -8,34 +15,32 @@ ShadowLight::~ShadowLight()
 HRESULT ShadowLight::Init(int limit, ID3D11Device* device, const wWindow& window)
 {
     HRESULT hr = {};
-    hr = InitTexture();
-    if (FAILED(hr))
+    if (FAILED(InitSampler(device)))
         return hr;
 
-    hr = InitCBuffer();
-    if (FAILED(hr))
+    if (FAILED(InitShadowMap(device, window)))
+        return hr;
+    if (FAILED(InitDSV(device)))
+        return hr;
+    if (FAILED(InitSRV(device)))
+        return hr;
+    if (FAILED(InitStructuredBuffer(device, window)))
+        return hr;
+    if (FAILED(InitSBufferSRV(device)))
         return hr;
 
-    hr = InitDSV();
-    if (FAILED(hr))
-        return hr;
-
-    hr = InitSampler();
     return hr;
 }
 
-bool ShadowLight::AddLight(Light light)
+bool ShadowLight::AddLight(Light light, ID3D11Device* device)
 {
+
+
+
     return false;
 }
-void ShadowLight::MoveLight(int index, int right, int up, int forward)
-{
-    // TODO
-}
-void ShadowLight::RotateLight(int index, int pitch, int yaw, int roll)
-{
-    // TODO
-}
+
+
 
 const Light& ShadowLight::GetLightData(int index) const
 {
@@ -67,41 +72,140 @@ const dx::XMMATRIX& ShadowLight::operator[](int index) const
 }
 
 
-
 ID3D11ShaderResourceView* ShadowLight::GetShadowMapSRV() const
 {
-    return nullptr;
+    return m_sMapSRV.Get();
 }
 ID3D11ShaderResourceView* const* ShadowLight::GetShadowMapSRVPP() const
 {
-    return nullptr;
-}
-
-ID3D11RenderTargetView* ShadowLight::GetShadowMapRTV() const
-{
-    return m_textureRTV.Get();
-}
-ID3D11RenderTargetView* const* ShadowLight::GetShadowMapRTVPP() const
-{
-    return m_textureRTV.GetAddressOf();
-}
-
-ID3D11SamplerState* ShadowLight::GetShadowSampler() const
-{
-    return m_sState.Get();
-}
-ID3D11SamplerState* const* ShadowLight::GetShadowSamplerPP() const
-{
-    return m_sState.GetAddressOf();
+    return m_sMapSRV.GetAddressOf();
 }
 
 
-
-HRESULT ShadowLight::InitTexture()
+HRESULT ShadowLight::UpdateCBuffer(int index)
 {
+    if (index > m_cBuffer.size() || index < 0)
+        return HRESULT(E_ACCESSDENIED);
+
+
+
+
     return E_NOTIMPL;
 }
-HRESULT ShadowLight::InitSampler()
+HRESULT ShadowLight::InitNewCBuffer(ID3D11Device* device)
 {
+
+
     return E_NOTIMPL;
+}
+
+
+HRESULT ShadowLight::InitShadowMap(ID3D11Device* device, const wWindow& window)
+{
+    HRESULT hr = {};
+
+    D3D11_TEXTURE2D_DESC desc = {};
+    desc.Format             = DXGI_FORMAT_R32_TYPELESS;
+    desc.ArraySize          = SHADOW_MAP_ARRAY_SIZE;
+    desc.Height             = window.GetWindowHeight();
+    desc.Width              = window.GetWindowWidth();
+    desc.BindFlags          = D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE;
+    desc.SampleDesc.Count   = 1;
+    desc.SampleDesc.Quality = 0;
+    desc.Usage              = D3D11_USAGE_DEFAULT;
+    desc.CPUAccessFlags     = 0;
+    desc.MipLevels          = 1;
+    desc.MiscFlags          = 0;
+
+
+    hr = device->CreateTexture2D(
+        &desc, 
+        nullptr, 
+        m_shadowMap.GetAddressOf()
+    );
+    return hr;
+}
+HRESULT ShadowLight::InitDSV(ID3D11Device* device)
+{
+    HRESULT hr = {};
+
+    D3D11_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
+    dsvDesc.Format = DXGI_FORMAT_D32_FLOAT;
+    dsvDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2DARRAY;
+    dsvDesc.Texture2DArray.MipSlice = 0;
+    dsvDesc.Texture2DArray.ArraySize = 1;
+
+    for (UINT i = 0; i < SHADOW_MAP_ARRAY_SIZE; ++i)
+    {
+        dsvDesc.Texture2DArray.FirstArraySlice = i;
+        hr = device->CreateDepthStencilView(
+            m_shadowMap.Get(),
+            &dsvDesc,
+            m_sMapDSV[i].GetAddressOf()
+        );
+
+        if(FAILED(hr))
+        {
+            break;
+        }
+    }
+
+    return hr;
+}
+HRESULT ShadowLight::InitSRV(ID3D11Device* device)
+{
+    HRESULT hr = {};
+
+    D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+    srvDesc.Format                         = DXGI_FORMAT_R32_FLOAT;
+    srvDesc.ViewDimension                  = D3D11_SRV_DIMENSION_TEXTURE2DARRAY;
+    srvDesc.Texture2DArray.MostDetailedMip = 0;
+    srvDesc.Texture2DArray.MipLevels       = 1;
+    srvDesc.Texture2DArray.FirstArraySlice = 0;
+    srvDesc.Texture2DArray.ArraySize       = SHADOW_MAP_ARRAY_SIZE;
+
+    hr = device->CreateShaderResourceView(
+        m_shadowMap.Get(),
+        &srvDesc,
+        m_sMapSRV.GetAddressOf()
+    );
+    return hr;
+}
+
+HRESULT ShadowLight::InitStructuredBuffer(ID3D11Device* device, const wWindow& window)
+{
+    HRESULT hr = {};
+
+    D3D11_BUFFER_DESC desc = {};
+    desc.ByteWidth           = sizeof(float) * window.GetWindowHeight() * window.GetWindowWidth(); // Maybe wrong?
+    desc.Usage               = D3D11_USAGE_DEFAULT;
+    desc.BindFlags           = D3D11_BIND_SHADER_RESOURCE;
+    desc.CPUAccessFlags      = 0; // Not dynamic
+    desc.MiscFlags           = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+    desc.StructureByteStride = sizeof(float);
+
+    hr = device->CreateBuffer(
+        &desc,
+        nullptr,
+        m_structuredBuffer.GetAddressOf()
+    );
+    return hr;
+}
+HRESULT ShadowLight::InitSBufferSRV(ID3D11Device* device)
+{
+    HRESULT hr = {};
+
+    D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+    srvDesc.Format;
+    srvDesc.ViewDimension;
+    srvDesc.Buffer.FirstElement;
+    srvDesc.Buffer.NumElements;
+
+    hr = device->CreateShaderResourceView(
+        m_structuredBuffer.Get(),
+        &srvDesc,
+        m_sBufferSRV.GetAddressOf()
+    );
+
+    return hr;
 }

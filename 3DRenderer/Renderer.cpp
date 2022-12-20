@@ -105,7 +105,7 @@ bool Renderer::Build(wWindow window)
 	if (!BuildUnorderedAccessView(window))     { infoDump((unsigned)__LINE__); return false; }
 	if (!BuildGraphBuffer(window))             { infoDump((unsigned)__LINE__); return false; }
 	for (int i = 0; i < BUFFER_COUNT; i++)
-	                                           {
+	{
 		m_deferredRTVOutput[i] = m_gbuffer[i].renderTargetView;
 		m_deferredSRVInput[i] = m_gbuffer[i].shaderResourceView;
 	}

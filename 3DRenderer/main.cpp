@@ -274,11 +274,17 @@ int APIENTRY wWinMain(
 			iter++;
 #endif
 
+
+			// #################### Render loop ##########################
 			//Render
 			renderer.UpdateLighting();
 			renderer.ShadowPass();
 			renderer.DrawDeferred(drawable, hWindow);
 			renderer.Render();
+			
+			// #################### Render loop ##########################
+
+			
 			//Catch up the loop
 			elapsedTime -= timeLock;
 		}

@@ -7,6 +7,10 @@ using namespace Microsoft;
 #include "Structures.h"
 #include "wWindow.h"
 
+
+// You can add lights but not remove them (adding creates a constant buffer)
+// Once lights are added they will be statically placed, not movable
+
 class ShadowLight
 {
 public:
@@ -15,9 +19,7 @@ public:
 
 	HRESULT Init(int limit, ID3D11Device* device, const wWindow& window);
 
-	bool AddLight(Light light);
-	void MoveLight(int index, int right, int up, int forward);
-	void RotateLight(int index, int pitch, int yaw, int roll);
+	bool AddLight(Light light, ID3D11Device* device);
 
 	const Light& GetLightData(int index) const;
 	const std::vector<Light>& GetLightVec();
@@ -34,9 +36,6 @@ public:
 	ID3D11ShaderResourceView* GetShadowMapSRV() const;
 	ID3D11ShaderResourceView* const* GetShadowMapSRVPP() const;
 
-	ID3D11RenderTargetView* GetShadowMapRTV() const;
-	ID3D11RenderTargetView* const* GetShadowMapRTVPP() const;
-
 	ID3D11SamplerState* GetShadowSampler() const;
 	ID3D11SamplerState* const* GetShadowSamplerPP() const;
 
@@ -44,23 +43,32 @@ public:
 	HRESULT UpdateCBuffer(int index);
 
 private:
-	HRESULT InitTexture();
-	HRESULT InitSampler();
-	HRESULT InitDSV();
-	HRESULT InitCBuffer();
+	HRESULT InitSampler(ID3D11Device* device);
+	HRESULT InitNewCBuffer(ID3D11Device* device);
+
+
+	HRESULT InitShadowMap(ID3D11Device* device, const wWindow& window);
+	HRESULT InitDSV(ID3D11Device* device);
+	HRESULT InitSRV(ID3D11Device* device);
+
+
+	HRESULT InitStructuredBuffer(ID3D11Device* device, const wWindow& window);
+	HRESULT InitSBufferSRV(ID3D11Device* device);
 
 public:
 private:
-	WRL::ComPtr<ID3D11SamplerState> m_sState;
-
 	std::vector<Light> m_lightData;
 	std::vector<Camera> m_lightCams;
+	std::vector<WRL::ComPtr<ID3D11Buffer>> m_cBuffer; // Holds the VP matrix and uploads it, probably should be an array
 
 
+	WRL::ComPtr<ID3D11Texture2D> m_shadowMap;
+	WRL::ComPtr<ID3D11ShaderResourceView> m_sMapSRV;
+	std::vector < WRL::ComPtr<ID3D11DepthStencilView>> m_sMapDSV;
+	
 
-	WRL::ComPtr<ID3D11ShaderResourceView> m_textureSRV;
-	WRL::ComPtr<ID3D11RenderTargetView> m_textureRTV;
-	WRL::ComPtr<ID3D11DepthStencilView> m_dsv;
-	WRL::ComPtr<ID3D11Buffer> m_cbuffer;
+
+	WRL::ComPtr<ID3D11Buffer> m_structuredBuffer;
+	WRL::ComPtr<ID3D11ShaderResourceView> m_sBufferSRV;
 };
 
