@@ -70,11 +70,11 @@ const dx::XMMATRIX& ShadowLight::operator[](int index) const
 
 ID3D11ShaderResourceView* ShadowLight::GetShadowMapSRV() const
 {
-    return m_textureSRV.Get();
+    return nullptr;
 }
 ID3D11ShaderResourceView* const* ShadowLight::GetShadowMapSRVPP() const
 {
-    return m_textureSRV.GetAddressOf();
+    return nullptr;
 }
 
 ID3D11RenderTargetView* ShadowLight::GetShadowMapRTV() const
