@@ -103,6 +103,6 @@
     <FxCompile Include="LightPass.hlsl">
       <Filter>Resource Files\Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="ShdaowPassVS.hlsl" />
+    <FxCompile Include="ShadowPassVS.hlsl" />
   </ItemGroup>
 </Project>

@@ -74,13 +74,13 @@ struct Image
 struct Light
 {
 	// X Y Z Type
-	// For types see README file
+	// For types see README file (lightType)
 	std::array<float, 4> Position_Type;
 	// R G B Intensity
 	std::array<float, 4> Color_Intensity;
 	// X Y Z Range
 	std::array<float, 4> Direction_Range;
-
+	// cos inner circle - outer, if shadow, index for shadow
 	std::array<float, 4> CosOuter_Inner_SMap_count;
 };
 struct LightCData

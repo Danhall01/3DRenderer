@@ -9,6 +9,10 @@ public:
 	Camera();
 	Camera(const dx::XMVECTOR& pos, float fovDegrees, float aspectRatio, float nearZ, float farZ);
 	Camera(float right, float up, float forward, float fovDegrees, float aspectRatio, float nearZ, float farZ);
+	Camera(
+		float right, float up, float forward,
+		float yaw, float pitch, float roll,
+		float fovDegrees, float aspectRatio, float nearZ, float farZ);
 	~Camera() = default;
 
 	Camera operator=(const Camera& otherCam);

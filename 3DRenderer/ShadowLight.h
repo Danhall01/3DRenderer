@@ -7,29 +7,30 @@ using namespace Microsoft;
 #include "Structures.h"
 #include "wWindow.h"
 
+struct CbufferData 
+{
+	dx::XMMATRIX VPMatrix;
+};
 
 // You can add lights but not remove them (adding creates a constant buffer)
 // Once lights are added they will be statically placed, not movable
-
 class ShadowLight
 {
 public:
 	ShadowLight();
 	~ShadowLight();
 
-	HRESULT Init(int limit, ID3D11Device* device, const wWindow& window);
+	HRESULT Init(ID3D11Device* device, const wWindow& window);
 
-	bool AddLight(Light light, ID3D11Device* device);
+	bool AddLight(const Light& light, const wWindow& window);
 
 	const Light& GetLightData(int index) const;
 	const std::vector<Light>& GetLightVec();
 
 
-	const dx::XMMATRIX& GetLightVPMatrix(int index) const;
-	const dx::XMMATRIX& At(int index) const;
-	const dx::XMMATRIX& operator[](int index) const;
-
-
+	dx::XMMATRIX GetLightWVPMatrix(int index) const;
+	dx::XMMATRIX At(int index) const;
+	dx::XMMATRIX operator[](int index) const;
 
 
 
@@ -37,11 +38,9 @@ public:
 	ID3D11ShaderResourceView* const* GetShadowMapSRVPP() const;
 
 
-	HRESULT UpdateCBuffer(int index);
-
+	bool UpdateCamConstantBuffer(int index, ID3D11DeviceContext* dContext);
 private:
-	HRESULT InitNewCBuffer(ID3D11Device* device);
-
+	HRESULT InitConstantBuffer(ID3D11Device* device);
 
 	HRESULT InitShadowMap(ID3D11Device* device, const wWindow& window);
 	HRESULT InitDSV(ID3D11Device* device);
@@ -49,13 +48,13 @@ private:
 
 
 	HRESULT InitStructuredBuffer(ID3D11Device* device, const wWindow& window);
-	HRESULT InitSBufferSRV(ID3D11Device* device);
+	HRESULT InitSBufferSRV(ID3D11Device* device, const wWindow& window);
 
 public:
 private:
 	std::vector<Light> m_lightData;
+	WRL::ComPtr<ID3D11Buffer> m_cCamBuffer;
 	std::vector<Camera> m_lightCams;
-	std::vector<WRL::ComPtr<ID3D11Buffer>> m_cBuffer; // Holds the VP matrix and uploads it, probably should be an array
 
 
 	WRL::ComPtr<ID3D11Texture2D> m_shadowMap;

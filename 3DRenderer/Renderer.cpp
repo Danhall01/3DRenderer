@@ -57,9 +57,9 @@ void Renderer::AddLight(const Light& light)
 {
 	m_lightArr.push_back(light);
 }
-void Renderer::AddShadowLight(const Light & light)
+void Renderer::AddShadowLight(const Light & light, const wWindow& window)
 {
-	m_shadowlightManager.AddLight(light, m_device.Get());
+	m_shadowlightManager.AddLight(light, window);
 }
 
 
@@ -112,7 +112,9 @@ bool Renderer::Build(wWindow window)
 
 	//Lighting
 	if (!BuildLightBuffer())                   { infoDump((unsigned)__LINE__); return false; }
-	if (!BuildShadowPass(window))              { infoDump((unsigned)__LINE__); return false; }
+	
+	if (!BuildShadowPass(shaderBlob, window))              { infoDump((unsigned)__LINE__); return false; }
+
 
 	shaderBlob->Release();
 	return true;
@@ -263,13 +265,10 @@ bool Renderer::UpdateVertexConstantBuffer(dx::XMMATRIX& matrix)
 	dx::XMVECTOR det = dx::XMMatrixDeterminant(matrix);
 	WVPMatrix wvpMatrix = {
 		dx::XMMatrixTranspose(matrix),
-		
 			dx::XMMatrixInverse(
 				&det,
 				matrix
         ),
-
-
 		dx::XMMatrixTranspose(m_dxCam.GetViewMatrix()),
 		dx::XMMatrixTranspose(m_dxCam.GetProjectionMatrix())
 	};
@@ -441,12 +440,45 @@ bool Renderer::UpdateLighting()
 	m_immediateContext->Unmap(m_lightCount.Get(), 0);
 	return true;
 }
-bool Renderer::BuildShadowPass(wWindow window)
+
+bool Renderer::BuildShadowPass(ID3DBlob* shaderBlob, wWindow window)
 {
-	m_hr = m_shadowlightManager.Init(10, m_device.Get(), window);
+	// Create the manager
+	m_hr = m_shadowlightManager.Init(m_device.Get(), window);
+	if (FAILED(m_hr)) 
+	{
+		return false;
+	}
+
+#if _DEBUG
+	wchar_t vsPath[] = L"../x64/Debug/ShadowPassVS.cso";
+#else
+	wchar_t vsPath[] = L"../x64/Release/ShadowPassVS.cso";
+#endif
+
+	// Compile the shadowpass vertex shader
+	D3DReadFileToBlob(vsPath, &shaderBlob);
+	if (FAILED(m_hr))
+		return false;
+
+	m_hr = m_device->CreateVertexShader(
+		shaderBlob->GetBufferPointer(),
+		shaderBlob->GetBufferSize(),
+		NULL,
+		m_shadowVertexShader.GetAddressOf()
+	);
+
+	// Create the inputlayout
+	D3D11_INPUT_ELEMENT_DESC vShaderInput[] = {
+	{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0},
+	};
+	m_hr = m_device->CreateInputLayout(
+		vShaderInput, (UINT)(sizeof(vShaderInput) / sizeof(*vShaderInput)),
+		shaderBlob->GetBufferPointer(), shaderBlob->GetBufferSize(),
+		m_shadowInputLayour.GetAddressOf()
+	);
 	return SUCCEEDED(m_hr);
 }
-
 
 
 // Buffers
@@ -804,7 +836,7 @@ void Renderer::ShadowPass()
 	
 	// Disable DS
 
-	// Set up VS and PS
+	// Set up VS
 
 	// Drawcall for each light
 	// Update Cbuffer

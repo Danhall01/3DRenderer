@@ -37,7 +37,7 @@ public:
 	void UpdateDXCam();
 
 	void AddLight(const Light& light);
-	void AddShadowLight(const Light& light);
+	void AddShadowLight(const Light& light, const wWindow& window);
 
 	// ===== RENDERING FUNCTIONS
 	//Input manager
@@ -95,8 +95,7 @@ private:
 
 	// Lights Helper Functions
 	bool BuildLightBuffer();
-	bool BuildShadowPass(wWindow window);
-
+	bool BuildShadowPass(ID3DBlob* shaderBlob, wWindow window);
 
 	// Image Helper functions
 	bool UpdateImageMap();
@@ -125,9 +124,14 @@ private: //D3D11 VARIABLES
 		std::string, 
 		WRL::ComPtr<ID3D11ShaderResourceView>>  m_loadedImages;
 
+
 	//Shaders
 	std::vector<ShaderSet>                      m_shaders;
 	std::vector<WRL::ComPtr<ID3D11InputLayout>> m_inputLayout;
+
+	WRL::ComPtr<ID3D11VertexShader>             m_shadowVertexShader;
+	WRL::ComPtr<ID3D11InputLayout>              m_shadowInputLayour;
+
 
 	//Deferred rendering
 	static constexpr UINT BUFFER_COUNT = 5; // +1 shadow map

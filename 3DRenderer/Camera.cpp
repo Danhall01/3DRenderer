@@ -22,6 +22,16 @@ Camera::Camera(float right, float up, float forward, float fovDegrees, float asp
 	UpdateProjectionMatrix(fovDegrees, aspectRatio, nearZ, farZ);
 	UpdateViewMatrix();
 }
+Camera::Camera(
+	float right, float up, float forward, 
+	float pitch, float yaw, float roll, 
+	float fovDegrees, float aspectRatio, float nearZ, float farZ)
+{
+	m_position = { right, up, forward };
+	m_rotation = { pitch, yaw, roll };
+	UpdateProjectionMatrix(fovDegrees, aspectRatio, nearZ, farZ);
+	UpdateViewMatrix();
+}
 
 Camera Camera::operator=(const Camera& otherCam)
 {
@@ -62,6 +72,7 @@ void Camera::UpdateProjectionMatrix(float fovDegrees, float aspectRatio, float n
 	float fovRad = (fovDegrees / 360.0f) * dx::XM_2PI;
 	m_projectionMatrix = dx::XMMatrixPerspectiveFovLH(fovRad, aspectRatio, nearZ, farZ);
 }
+
 
 
 void Camera::AddPosition(float right, float up, float forward)
