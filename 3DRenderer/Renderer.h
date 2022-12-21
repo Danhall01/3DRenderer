@@ -50,7 +50,7 @@ public:
 	//Renderer manager
 	bool Build(wWindow window);
 	void DrawDeferred(std::vector< std::pair<std::string, dx::XMMATRIX> >& drawTargets, const wWindow& window);
-	void ShadowPass();
+	void ShadowPass(std::vector< std::pair<std::string, dx::XMMATRIX> >& drawTargets);
 	
 	bool UpdateLighting();
 	void Render();
@@ -130,7 +130,6 @@ private: //D3D11 VARIABLES
 	std::vector<WRL::ComPtr<ID3D11InputLayout>> m_inputLayout;
 
 	WRL::ComPtr<ID3D11VertexShader>             m_shadowVertexShader;
-	WRL::ComPtr<ID3D11InputLayout>              m_shadowInputLayour;
 
 
 	//Deferred rendering

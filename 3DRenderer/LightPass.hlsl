@@ -17,7 +17,9 @@ Texture2D<float4> in_normal      : register(t2); // X Y Z Ns
 Texture2D<float4> in_diffuseClr  : register(t3); // R G B Kd
 Texture2D<float4> in_specularClr : register(t4); // R G B Ks
 
-Texture2DArray<float> in_shadowMap : register(t6); // Depth
+// Shadow
+Texture2DArray<float> in_shadowMap : register(t6);
+sampler shadowSampler : register(s1);
 
 //Lights
 struct light

@@ -18,6 +18,7 @@ class ShadowLight
 {
 public:
 	ShadowLight();
+	ShadowLight(UINT maxLightCount);
 	~ShadowLight();
 
 	HRESULT Init(ID3D11Device* device, const wWindow& window);
@@ -32,11 +33,16 @@ public:
 	dx::XMMATRIX At(int index) const;
 	dx::XMMATRIX operator[](int index) const;
 
+	const UINT Length() const;
 
+	ID3D11DepthStencilView* GetDSVP(int index) const;
+	ID3D11DepthStencilView*const* GetDSVPP(int index) const;
 
-	ID3D11ShaderResourceView* GetShadowMapSRV() const;
-	ID3D11ShaderResourceView* const* GetShadowMapSRVPP() const;
+	ID3D11Buffer* GetVSCBufferP() const;
+	ID3D11Buffer*const* GetVSCBufferPP() const;
 
+	ID3D11SamplerState* GetShadowSamplerP() const;
+	ID3D11SamplerState*const* GetShadowSamplerPP() const;
 
 	bool UpdateCamConstantBuffer(int index, ID3D11DeviceContext* dContext);
 private:
@@ -46,24 +52,19 @@ private:
 	HRESULT InitDSV(ID3D11Device* device);
 	HRESULT InitSRV(ID3D11Device* device);
 
-
-	HRESULT InitStructuredBuffer(ID3D11Device* device, const wWindow& window);
-	HRESULT InitSBufferSRV(ID3D11Device* device, const wWindow& window);
-
+	HRESULT InitSampler(ID3D11Device* device);
 public:
 private:
-	std::vector<Light> m_lightData;
-	WRL::ComPtr<ID3D11Buffer> m_cCamBuffer;
-	std::vector<Camera> m_lightCams;
+	const UINT MAX_LIGHT_COUNT; // Default 10
 
+	std::vector<Light> m_lightData;
+	std::vector<Camera> m_lightCams;
+	WRL::ComPtr<ID3D11Buffer> m_cCamBuffer;
+
+	WRL::ComPtr<ID3D11SamplerState> m_shadowSampler;
 
 	WRL::ComPtr<ID3D11Texture2D> m_shadowMap;
 	WRL::ComPtr<ID3D11ShaderResourceView> m_sMapSRV;
 	std::vector < WRL::ComPtr<ID3D11DepthStencilView>> m_sMapDSV;
-	
-
-
-	WRL::ComPtr<ID3D11Buffer> m_structuredBuffer;
-	WRL::ComPtr<ID3D11ShaderResourceView> m_sBufferSRV;
 };
 

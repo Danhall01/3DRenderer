@@ -1,9 +1,9 @@
 #include "ShadowLight.h"
 
-constexpr int SHADOW_MAP_ARRAY_SIZE = 3;// spot, point, directional
 
-
-ShadowLight::ShadowLight() 
+ShadowLight::ShadowLight() : MAX_LIGHT_COUNT(10)
+{}
+ShadowLight::ShadowLight(UINT maxLightCount) : MAX_LIGHT_COUNT(maxLightCount)
 {}
 
 ShadowLight::~ShadowLight() 
@@ -12,6 +12,10 @@ ShadowLight::~ShadowLight()
 
 bool ShadowLight::AddLight(const Light& light, const wWindow& window)
 {
+    if (m_lightData.size() >= MAX_LIGHT_COUNT)
+        return false;
+
+
     float fovDeg = 90;
     float aspectRatio = window.GetWindowRatio(); //hard coded from base values
 
@@ -23,47 +27,14 @@ bool ShadowLight::AddLight(const Light& light, const wWindow& window)
         0.1f, light.Direction_Range[3]
     );
 
+    
+
+
+
+
     m_lightCams.push_back(dxCam);
     m_lightData.push_back(light);
     return true;
-
-    //if(light.Position_Type[3] == lightType::LIGHT_TYPE_SPOTLIGHT)
-    //{
-    //    Camera dxCam = Camera(
-    //        light.Position_Type[0], light.Position_Type[1], light.Position_Type[2],
-    //        light.Direction_Range[0], light.Direction_Range[1], light.Direction_Range[2],
-    //        fovDeg,
-    //        aspectRatio,
-    //        0.1f, light.Direction_Range[3]
-    //    );
-    //    m_lightCams.push_back(dxCam);
-    //}
-    //else if (light.Position_Type[3] == lightType::LIGHT_TYPE_DIRECTIONAL)
-    //{
-    //    Camera dxCam = Camera(
-    //        light.Position_Type[0], light.Position_Type[1], light.Position_Type[2],
-    //        light.Direction_Range[0], light.Direction_Range[1], light.Direction_Range[2],
-    //        fovDeg,
-    //        aspectRatio,
-    //        0.1f, light.Direction_Range[3]
-    //    );
-    //    m_lightCams.push_back(dxCam);
-    //}
-    //else if (light.Position_Type[3] == lightType::LIGHT_TYPE_POINT)
-    //{
-    //    Camera dxCam = Camera(
-    //        light.Position_Type[0], light.Position_Type[1], light.Position_Type[2],
-    //        light.Direction_Range[0], light.Direction_Range[1], light.Direction_Range[2],
-    //        fovDeg,
-    //        aspectRatio,
-    //        0.1f, light.Direction_Range[3]
-    //    );
-    //    m_lightCams.push_back(dxCam);
-    //}
-    //else 
-    //{
-    //    return false;
-    //}
 }
 
 
@@ -102,14 +73,39 @@ dx::XMMATRIX ShadowLight::operator[](int index) const
 }
 
 
-ID3D11ShaderResourceView* ShadowLight::GetShadowMapSRV() const
+const UINT ShadowLight::Length() const
 {
-    return m_sMapSRV.Get();
+    return m_lightData.size();
 }
-ID3D11ShaderResourceView* const* ShadowLight::GetShadowMapSRVPP() const
+
+
+ID3D11DepthStencilView* ShadowLight::GetDSVP(int index) const
 {
-    return m_sMapSRV.GetAddressOf();
+    return m_sMapDSV[index].Get();
 }
+ID3D11DepthStencilView*const* ShadowLight::GetDSVPP(int index) const
+{
+    return m_sMapDSV[index].GetAddressOf();
+}
+
+ID3D11Buffer* ShadowLight::GetVSCBufferP() const
+{
+    return m_cCamBuffer.Get();
+}
+ID3D11Buffer*const* ShadowLight::GetVSCBufferPP() const
+{
+    return m_cCamBuffer.GetAddressOf();
+}
+
+ID3D11SamplerState* ShadowLight::GetShadowSamplerP() const
+{
+    return m_shadowSampler.Get();
+}
+ID3D11SamplerState*const* ShadowLight::GetShadowSamplerPP() const
+{
+    return m_shadowSampler.GetAddressOf();
+}
+
 
 
 
@@ -125,9 +121,7 @@ HRESULT ShadowLight::Init(ID3D11Device* device, const wWindow& window)
         return hr;
     if (FAILED(hr = InitSRV(device)))
         return hr;
-    if (FAILED(hr = InitStructuredBuffer(device, window)))
-        return hr;
-    if (FAILED(hr = InitSBufferSRV(device, window)))
+    if (FAILED(hr = InitSampler(device)))
         return hr;
 
     return hr;
@@ -184,7 +178,7 @@ HRESULT ShadowLight::InitShadowMap(ID3D11Device* device, const wWindow& window)
 
     D3D11_TEXTURE2D_DESC desc = {};
     desc.Format             = DXGI_FORMAT_R32_TYPELESS;
-    desc.ArraySize          = SHADOW_MAP_ARRAY_SIZE;
+    desc.ArraySize          = MAX_LIGHT_COUNT;
     desc.Height             = static_cast<UINT>(window.GetWindowHeight());
     desc.Width              = static_cast<UINT>(window.GetWindowWidth());
     desc.BindFlags          = D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE;
@@ -213,7 +207,7 @@ HRESULT ShadowLight::InitDSV(ID3D11Device* device)
     dsvDesc.Texture2DArray.MipSlice = 0;
     dsvDesc.Texture2DArray.ArraySize = 1;
 
-    for (UINT i = 0; i < SHADOW_MAP_ARRAY_SIZE; ++i)
+    for (UINT i = 0; i < MAX_LIGHT_COUNT; ++i)
     {
         ID3D11DepthStencilView* dsv = {};
 
@@ -244,7 +238,7 @@ HRESULT ShadowLight::InitSRV(ID3D11Device* device)
     srvDesc.Texture2DArray.MostDetailedMip = 0;
     srvDesc.Texture2DArray.MipLevels       = 1;
     srvDesc.Texture2DArray.FirstArraySlice = 0;
-    srvDesc.Texture2DArray.ArraySize       = SHADOW_MAP_ARRAY_SIZE;
+    srvDesc.Texture2DArray.ArraySize       = MAX_LIGHT_COUNT;
 
     hr = device->CreateShaderResourceView(
         m_shadowMap.Get(),
@@ -254,39 +248,20 @@ HRESULT ShadowLight::InitSRV(ID3D11Device* device)
     return hr;
 }
 
-HRESULT ShadowLight::InitStructuredBuffer(ID3D11Device* device, const wWindow& window)
+HRESULT ShadowLight::InitSampler(ID3D11Device* device)
 {
     HRESULT hr = {};
 
-    D3D11_BUFFER_DESC desc = {};
-    desc.ByteWidth           = static_cast<UINT>(sizeof(float) * window.GetWindowHeight() * window.GetWindowWidth()); // Maybe wrong?
-    desc.Usage               = D3D11_USAGE_DEFAULT;
-    desc.BindFlags           = D3D11_BIND_SHADER_RESOURCE;
-    desc.CPUAccessFlags      = 0; // Not dynamic
-    desc.MiscFlags           = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
-    desc.StructureByteStride = sizeof(float);
+    D3D11_SAMPLER_DESC samplerDesc = {};
+    samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+    samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_BORDER;
+    samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_BORDER;
+    samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_BORDER;
 
-    hr = device->CreateBuffer(
-        &desc,
-        nullptr,
-        m_structuredBuffer.GetAddressOf()
-    );
-    return hr;
-}
-HRESULT ShadowLight::InitSBufferSRV(ID3D11Device* device, const wWindow& window)
-{
-    HRESULT hr = {};
 
-    D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-    srvDesc.Format              = DXGI_FORMAT_UNKNOWN;
-    srvDesc.ViewDimension       = D3D11_SRV_DIMENSION_BUFFER;
-    srvDesc.Buffer.FirstElement = 0;
-    srvDesc.Buffer.NumElements  = static_cast<UINT>(window.GetWindowHeight() * window.GetWindowWidth());
-
-    hr = device->CreateShaderResourceView(
-        m_structuredBuffer.Get(),
-        &srvDesc,
-        m_sBufferSRV.GetAddressOf()
+    hr = device->CreateSamplerState(
+        &samplerDesc,
+        m_shadowSampler.GetAddressOf()
     );
 
     return hr;

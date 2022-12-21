@@ -278,7 +278,7 @@ int APIENTRY wWinMain(
 			// #################### Render loop ##########################
 			//Render
 			renderer.UpdateLighting();
-			renderer.ShadowPass();
+			renderer.ShadowPass(drawable);
 			renderer.DrawDeferred(drawable, hWindow);
 			renderer.Render();
 			

@@ -1,0 +1,5 @@
+newmtl cube
+Ns 10.0000
+map_Ka rp.jpg
+map_Kd rp.jpg
+map_Ks rp.jpg

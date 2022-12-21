@@ -467,16 +467,6 @@ bool Renderer::BuildShadowPass(ID3DBlob* shaderBlob, wWindow window)
 		NULL,
 		m_shadowVertexShader.GetAddressOf()
 	);
-
-	// Create the inputlayout
-	D3D11_INPUT_ELEMENT_DESC vShaderInput[] = {
-	{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0},
-	};
-	m_hr = m_device->CreateInputLayout(
-		vShaderInput, (UINT)(sizeof(vShaderInput) / sizeof(*vShaderInput)),
-		shaderBlob->GetBufferPointer(), shaderBlob->GetBufferSize(),
-		m_shadowInputLayour.GetAddressOf()
-	);
 	return SUCCEEDED(m_hr);
 }
 
@@ -825,28 +815,80 @@ void Renderer::DrawDeferred(std::vector< std::pair<std::string, dx::XMMATRIX> >&
 	m_immediateContext->CSSetUnorderedAccessViews(0, 1, m_uav[0].GetAddressOf(), 0);
 	m_immediateContext->CSSetShaderResources(0, (BUFFER_COUNT + 1), m_deferredSRVInput[0].GetAddressOf());
 	m_immediateContext->CSSetConstantBuffers(0, 1, m_lightCount.GetAddressOf());
+	
+	//Added shadows
+	// shadow sampler bind
+	// shadow srv bind
+
+	// End added shadows
 
 	m_immediateContext->Dispatch(
 		static_cast<int>(window.GetWindowWidth() / 16), 
 		static_cast<int>(window.GetWindowHeight() / 16),
 		1);
 }
-void Renderer::ShadowPass()
+void Renderer::ShadowPass(std::vector< std::pair<std::string, dx::XMMATRIX> >& drawTargets)
 {
+	UINT stride = sizeof(Vertex);
+	UINT offset = 0;
+
+
+	// Basic setup
+	m_immediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	m_immediateContext->VSSetShader(m_shadowVertexShader.Get(), nullptr, 0);
 	
-	// Disable DS
+	//Unbind shaders
+	m_immediateContext->HSSetShader(nullptr, nullptr, 0);
+	m_immediateContext->DSSetShader(nullptr, nullptr, 0);
+	m_immediateContext->GSSetShader(nullptr, nullptr, 0);
+	m_immediateContext->PSSetShader(nullptr, nullptr, 0);
+	m_immediateContext->CSSetShader(nullptr, nullptr, 0);
 
-	// Set up VS
+	m_immediateContext->RSSetViewports(1, &m_viewport);
 
-	// Drawcall for each light
-	// Update Cbuffer
-	for (int i = 0; i < m_shadowlightManager.GetLightVec().size(); i++)
+	for (UINT lightIndex = 0; lightIndex < m_shadowlightManager.Length(); ++lightIndex) 
 	{
+		ID3D11DepthStencilView* dsView = m_shadowlightManager.GetDSVP(lightIndex);
+		m_immediateContext->ClearDepthStencilView(dsView, D3D11_CLEAR_DEPTH, 1, 0);
+		m_immediateContext->OMSetRenderTargets(0, nullptr, dsView);
 
+		m_immediateContext->VSSetConstantBuffers(0, 1, m_shadowlightManager.GetVSCBufferPP());
+
+
+		//Render loop
+		for (auto& asset : m_assets)
+		{
+			unsigned char data = asset.first;
+			int inputlayout = (int)((data & 0b11110000) >> 4);
+			m_immediateContext->IASetInputLayout(m_inputLayout[inputlayout].Get());
+
+			Mesh mesh = {};
+			for (int i = 0; i < drawTargets.size(); i++)
+			{
+				if (asset.second.GetMesh(drawTargets[i].first, mesh))
+				{
+					//Per mesh updates
+					if (!UpdateVertexBuffer(mesh)) { infoDump((unsigned)__LINE__); return; }
+					if (!UpdateIndexBuffer(mesh)) { infoDump((unsigned)__LINE__); return; }
+					m_immediateContext->IASetVertexBuffers(0, 1, m_vertexBuffer.GetAddressOf(), &stride, &offset);
+					m_immediateContext->IASetIndexBuffer(m_indexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0);
+
+					for (auto& submesh : mesh.GetSubmeshMap())
+					{
+						//Drawcall
+						m_immediateContext->DrawIndexed(
+							submesh.second.indiceCount,
+							submesh.second.indiceStartIndex,
+							submesh.second.verticeStartIndex
+						);
+					}
+				}
+			}
+
+		}
 	}
 
-
-	// OM writing to the shadowpass
+	m_immediateContext->OMSetRenderTargets(0, nullptr, nullptr);
 }
 
 
