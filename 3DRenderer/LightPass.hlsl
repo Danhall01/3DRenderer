@@ -11,15 +11,12 @@ sampler sState : register(s0);
 RWTexture2D<float4> UAC : register(u0);
 
 // Input
-Texture2D<float4> in_clr         : register(t0); // R G B Ka
+Texture2D<float4> in_clr         : register(t0); // mapKa Ka
 Texture2D<float4> in_wspos       : register(t1); // X Y Z W
 Texture2D<float4> in_normal      : register(t2); // X Y Z Ns
-Texture2D<float4> in_diffuseClr  : register(t3); // R G B Kd
-Texture2D<float4> in_specularClr : register(t4); // R G B Ks
 
-// Shadow
-Texture2DArray<float> in_shadowMap : register(t6);
-sampler shadowSampler : register(s1);
+Texture2D<float4> in_diffuseClr  : register(t3); // mapKd Kd
+Texture2D<float4> in_specularClr : register(t4); // mapKs Ks
 
 //Lights
 struct light
@@ -35,6 +32,13 @@ cbuffer lightingData : register(b0)
     uint4 CamPosLightCount; // X Y Z Count
 };
 
+
+// Shadow
+Texture2DArray<float> in_shadowMap : register(t6);
+sampler shadowSampler : register(s1);
+
+
+// TODO: REWORK ALL LIGHT FUNCTIONS
 
 // Spot light
 float3 SpotLight(float3 lightPos, float3 lightDir, float3 wsPos, float3 camPos, 
@@ -58,7 +62,7 @@ float3 SpotLight(float3 lightPos, float3 lightDir, float3 wsPos, float3 camPos,
    // Blinn specular
     float3 halfWay = normalize(toCamVec + toLightVec);
     float NDotH = saturate(dot(halfWay, normal));
-    finalColor += specularClr * pow(NDotH, shininess) * intensity;
+    finalColor += specularClr * pow(NDotH, shininess);
     
 
 	// Cone attenuation
@@ -72,12 +76,16 @@ float3 SpotLight(float3 lightPos, float3 lightDir, float3 wsPos, float3 camPos,
     finalColor *= lightClr * attn * conAttn;
     
 
-    return finalColor;
+    return finalColor * intensity;
 }
 // Directional light
 float3 DirLight(float3 lightDir, float3 wsPos, float3 camPos, float3 normal, float3 diffuseClr,
                 float shininess, float intensity, float3 lightClr)
 {
+    // TODO: CHECK SPECULAR IF IT WORKS HERE
+    
+    
+    
     float3 toLightVec = normalize(lightDir);
     float3 toCamVec = normalize(camPos - wsPos);
     // Phong diffuse
@@ -87,14 +95,17 @@ float3 DirLight(float3 lightDir, float3 wsPos, float3 camPos, float3 normal, flo
 	// Blinn specular
     float3 halfWay = normalize(toCamVec + toLightVec);
     float NDotH = saturate(dot(halfWay, normal));
-    finalColor += lightClr * pow(NDotH, shininess) * intensity;
+    finalColor += lightClr * pow(NDotH, shininess);
 
-    return finalColor;
+    return finalColor * intensity;
 }
 // Point light
 float3 PhongLighting(float3 lightClr, float3 L, float3 N, float3 V, 
                     float intensity, float shininess)
 {
+    // TODO: Range??
+    
+    
     float3 R = normalize(2 * dot(N, L) * N - L);
     float diffuseI = dot(L, N);
     
@@ -102,11 +113,11 @@ float3 PhongLighting(float3 lightClr, float3 L, float3 N, float3 V,
     {
         return float3(0.0f, 0.0f, 0.0f);
     }
-    float3 diffuse = intensity * max(diffuseI, 0.0f);
-    float3 specular = max(intensity * pow(dot(V, R), shininess), float3(0.0f, 0.0f, 0.0f));
+    float3 diffuse = max(diffuseI, 0.0f);
+    float3 specular = max(pow(dot(V, R), shininess), float3(0.0f, 0.0f, 0.0f));
     
     
-    return lightClr * (diffuse + specular);
+    return lightClr * (diffuse + specular) * intensity;
 }
 
 

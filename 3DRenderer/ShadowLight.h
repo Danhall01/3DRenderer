@@ -29,10 +29,12 @@ public:
 	const std::vector<Light>& GetLightVec();
 
 
-	dx::XMMATRIX GetLightWVPMatrix(int index) const;
+	dx::XMMATRIX GetLightVPMatrix(int index) const;
 	dx::XMMATRIX At(int index) const;
 	dx::XMMATRIX operator[](int index) const;
 
+	const Camera& GetDXCamera(int index) const;
+	
 	const UINT Length() const;
 
 	ID3D11DepthStencilView* GetDSVP(int index) const;
@@ -40,6 +42,9 @@ public:
 
 	ID3D11Buffer* GetVSCBufferP() const;
 	ID3D11Buffer*const* GetVSCBufferPP() const;
+
+	ID3D11ShaderResourceView* GetSRVP() const;
+	ID3D11ShaderResourceView*const* GetSRVPP() const;
 
 	ID3D11SamplerState* GetShadowSamplerP() const;
 	ID3D11SamplerState*const* GetShadowSamplerPP() const;

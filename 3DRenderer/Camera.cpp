@@ -1,5 +1,6 @@
 #include <algorithm>
 #include "Camera.h"
+#include "directxmath.h"
 
 Camera::Camera()
 {
@@ -22,13 +23,84 @@ Camera::Camera(float right, float up, float forward, float fovDegrees, float asp
 	UpdateProjectionMatrix(fovDegrees, aspectRatio, nearZ, farZ);
 	UpdateViewMatrix();
 }
-Camera::Camera(
-	float right, float up, float forward, 
-	float pitch, float yaw, float roll, 
-	float fovDegrees, float aspectRatio, float nearZ, float farZ)
+Camera::Camera(float right, float up, float forward, float x, float y, float z, float fovDegrees, float aspectRatio, float nearZ, float farZ)
 {
 	m_position = { right, up, forward };
-	m_rotation = { pitch, yaw, roll };
+	
+
+
+    z = -z;
+    if (x == 0.0f)
+    {
+        if (y > 0.0f)
+        {
+            m_rotation.x = dx::XM_PIDIV2;
+        }
+        else if (y < 0.0f)
+        {
+            m_rotation.x = -dx::XM_PIDIV2;
+        }
+        else
+        {
+            m_rotation.x = 0.0f;
+        }
+
+        if (z > 0.0f)
+        {
+            m_rotation.y = 0.0f;
+        }
+        else if (z < 0.0f)
+        {
+            m_rotation.y = dx::XM_PI;
+        }
+        else
+        {
+            m_rotation.y = 0.0f;
+        }
+    }
+    else if (y == 0.0f)
+    {
+        if (z > 0.0f)
+        {
+            m_rotation.x = 0.0f;
+        }
+        else if (z < 0.0f)
+        {
+            m_rotation.x = dx::XM_PI;
+        }
+        else
+        {
+            m_rotation.x = 0.0f;
+        }
+    }
+    else if (z == 0.0f)
+    {
+        if (y > 0.0f)
+        {
+            m_rotation.x = dx::XM_PIDIV2;
+        }
+        else if (y < 0.0f)
+        {
+            m_rotation.x = -dx::XM_PIDIV2;
+        }
+        else
+        {
+            m_rotation.x = 0.0f;
+        }
+    }
+    else
+    {
+        // Calculate the pitch angle
+        m_rotation.x = atan2f(-y, z);
+
+        // Calculate the yaw angle
+        m_rotation.y = atan2f(-x, z);
+    }
+    m_rotation.z = 0; // No rotation used
+
+    m_rotation.x *= -1;
+
+
 	UpdateProjectionMatrix(fovDegrees, aspectRatio, nearZ, farZ);
 	UpdateViewMatrix();
 }

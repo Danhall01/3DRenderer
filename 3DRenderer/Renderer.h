@@ -87,6 +87,8 @@ private:
 	bool BuildVertexConstantBuffer();
 	bool UpdateVertexConstantBuffer(const Mesh& mesh);
 	bool UpdateVertexConstantBuffer(dx::XMMATRIX& matrix);
+	bool UpdateVertexConstantBuffer(dx::XMMATRIX& modelView, const Camera& cam);
+
 
 	// Texture Helper Functions
 	bool BuildSampler();
@@ -133,7 +135,7 @@ private: //D3D11 VARIABLES
 
 
 	//Deferred rendering
-	static constexpr UINT BUFFER_COUNT = 5; // +1 shadow map
+	static constexpr UINT BUFFER_COUNT = 5; // Base 5 gbuffers, 1 lights, 1 shadows
 	std::vector<WRL::ComPtr<ID3D11UnorderedAccessView>> m_uav; // swapchainBuffer
 	GraphicsBuffer                                      m_gbuffer[BUFFER_COUNT];
 	WRL::ComPtr<ID3D11DepthStencilView>                 m_dsv;

@@ -26,12 +26,6 @@ bool ShadowLight::AddLight(const Light& light, const wWindow& window)
         aspectRatio,
         0.1f, light.Direction_Range[3]
     );
-
-    
-
-
-
-
     m_lightCams.push_back(dxCam);
     m_lightData.push_back(light);
     return true;
@@ -48,7 +42,7 @@ const std::vector<Light>& ShadowLight::GetLightVec()
 }
 
 
-dx::XMMATRIX ShadowLight::GetLightWVPMatrix(int index) const
+dx::XMMATRIX ShadowLight::GetLightVPMatrix(int index) const
 {
     return (*this)[index];
 }
@@ -62,20 +56,21 @@ dx::XMMATRIX ShadowLight::operator[](int index) const
     if (index < 0 || index > m_lightData.size())
     {
         return dx::XMMatrixIdentity();
-    }
-    std::array<float, 4> pos = m_lightData[index].Position_Type;
-    std::array<float, 4> rot = m_lightData[index].Direction_Range;
-    
+    }    
     return 
-        dx::XMMatrixTranspose(dx::XMMatrixRotationRollPitchYaw(rot[0], rot[1], rot[2]) * dx::XMMatrixTranslation(pos[0], pos[1], pos[2])) *
         dx::XMMatrixTranspose(m_lightCams[index].GetViewMatrix()) *
         dx::XMMatrixTranspose(m_lightCams[index].GetProjectionMatrix());
+}
+
+const Camera& ShadowLight::GetDXCamera(int index) const
+{
+    return m_lightCams[index];
 }
 
 
 const UINT ShadowLight::Length() const
 {
-    return m_lightData.size();
+    return static_cast<UINT>(m_lightData.size());
 }
 
 
@@ -95,6 +90,15 @@ ID3D11Buffer* ShadowLight::GetVSCBufferP() const
 ID3D11Buffer*const* ShadowLight::GetVSCBufferPP() const
 {
     return m_cCamBuffer.GetAddressOf();
+}
+
+ID3D11ShaderResourceView* ShadowLight::GetSRVP() const
+{
+    return m_sMapSRV.Get();
+}
+ID3D11ShaderResourceView* const* ShadowLight::GetSRVPP() const
+{
+    return m_sMapSRV.GetAddressOf();
 }
 
 ID3D11SamplerState* ShadowLight::GetShadowSamplerP() const

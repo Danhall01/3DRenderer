@@ -11,7 +11,7 @@ public:
 	Camera(float right, float up, float forward, float fovDegrees, float aspectRatio, float nearZ, float farZ);
 	Camera(
 		float right, float up, float forward,
-		float yaw, float pitch, float roll,
+		float x, float y, float z,
 		float fovDegrees, float aspectRatio, float nearZ, float farZ);
 	~Camera() = default;
 
@@ -37,6 +37,7 @@ private:
 	dx::XMMATRIX m_projectionMatrix;
 
 	dx::XMFLOAT3 m_position;
+	// Pitch Yaw Roll
 	dx::XMFLOAT3 m_rotation;
 
 

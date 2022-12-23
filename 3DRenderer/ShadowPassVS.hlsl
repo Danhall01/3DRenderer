@@ -6,10 +6,17 @@ struct VSInput
 };
 cbuffer wvpMatrix : register(b0)
 {
-    matrix WorldViewProjectionMatrix;
+    matrix worldMatrix;
+    matrix normalWMatrix;
+    matrix viewMatrix;
+    matrix projectionMatrix;
 };
 
 float4 main(VSInput input) : SV_POSITION
 {
-    return mul(float4(input.position, 1.0f), WorldViewProjectionMatrix);
+    matrix wvMatrix = mul(worldMatrix, viewMatrix);
+    matrix wvpMatrix = mul(wvMatrix, projectionMatrix);
+    
+    float4 pos = float4(input.position, 1.0f);
+    return mul(pos, wvpMatrix);
 }

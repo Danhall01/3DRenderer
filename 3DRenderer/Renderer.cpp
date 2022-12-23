@@ -254,7 +254,7 @@ bool Renderer::UpdateVertexConstantBuffer(const Mesh& mesh)
 	memcpy(
 		mResource.pData,
 		&wvpMatrix,
-		sizeof(WVPMatrix)
+		sizeof(wvpMatrix)
 	);
 	m_immediateContext->Unmap(m_vConstBuffer.Get(), 0);
 
@@ -265,7 +265,7 @@ bool Renderer::UpdateVertexConstantBuffer(dx::XMMATRIX& matrix)
 	dx::XMVECTOR det = dx::XMMatrixDeterminant(matrix);
 	WVPMatrix wvpMatrix = {
 		dx::XMMatrixTranspose(matrix),
-			dx::XMMatrixInverse(
+		dx::XMMatrixInverse(
 				&det,
 				matrix
         ),
@@ -281,7 +281,31 @@ bool Renderer::UpdateVertexConstantBuffer(dx::XMMATRIX& matrix)
 	memcpy(
 		mResource.pData,
 		&wvpMatrix,
-		sizeof(WVPMatrix)
+		sizeof(wvpMatrix)
+	);
+	m_immediateContext->Unmap(m_vConstBuffer.Get(), 0);
+
+	return true;
+}
+bool Renderer::UpdateVertexConstantBuffer(dx::XMMATRIX& modelView, const Camera& cam)
+{
+	dx::XMVECTOR det = dx::XMMatrixDeterminant(modelView);
+	WVPMatrix wvpMatrix = {
+		dx::XMMatrixTranspose(modelView),
+		dx::XMMatrixInverse(&det, modelView), // normal world matrix
+		dx::XMMatrixTranspose(cam.GetViewMatrix()),
+		dx::XMMatrixTranspose(cam.GetProjectionMatrix())
+	};
+
+	D3D11_MAPPED_SUBRESOURCE mResource = {};
+
+	m_hr = m_immediateContext->Map(m_vConstBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mResource);
+	if (FAILED(m_hr))
+		return false;
+	memcpy(
+		mResource.pData,
+		&wvpMatrix,
+		sizeof(wvpMatrix)
 	);
 	m_immediateContext->Unmap(m_vConstBuffer.Get(), 0);
 
@@ -784,8 +808,8 @@ void Renderer::DrawDeferred(std::vector< std::pair<std::string, dx::XMMATRIX> >&
 	m_immediateContext->PSSetSamplers(0, 1, m_samplerState.GetAddressOf());
 
 	// Clear input textures
-	ID3D11ShaderResourceView* nullSRV[BUFFER_COUNT+1] = { nullptr };
-	m_immediateContext->CSSetShaderResources(0, BUFFER_COUNT+1, nullSRV);
+	ID3D11ShaderResourceView* nullSRV[BUFFER_COUNT+2] = { nullptr };
+	m_immediateContext->CSSetShaderResources(0, BUFFER_COUNT+2, nullSRV);
 
 	// OM
 	m_immediateContext->OMSetRenderTargets(BUFFER_COUNT, m_deferredRTVOutput[0].GetAddressOf(), m_dsv.Get());
@@ -818,7 +842,12 @@ void Renderer::DrawDeferred(std::vector< std::pair<std::string, dx::XMMATRIX> >&
 	
 	//Added shadows
 	// shadow sampler bind
+	m_immediateContext->CSSetSamplers(1, 1, m_shadowlightManager.GetShadowSamplerPP());
+	m_immediateContext->CSSetShaderResources((BUFFER_COUNT + 1), 1, m_shadowlightManager.GetSRVPP());
+
 	// shadow srv bind
+
+
 
 	// End added shadows
 
@@ -844,6 +873,12 @@ void Renderer::ShadowPass(std::vector< std::pair<std::string, dx::XMMATRIX> >& d
 	m_immediateContext->PSSetShader(nullptr, nullptr, 0);
 	m_immediateContext->CSSetShader(nullptr, nullptr, 0);
 
+	//Unbind srv conected to RTV
+	ID3D11ShaderResourceView* nullSRV[BUFFER_COUNT + 2] = { nullptr };
+	m_immediateContext->CSSetShaderResources(0, BUFFER_COUNT + 2, nullSRV);
+
+
+
 	m_immediateContext->RSSetViewports(1, &m_viewport);
 
 	for (UINT lightIndex = 0; lightIndex < m_shadowlightManager.Length(); ++lightIndex) 
@@ -851,9 +886,6 @@ void Renderer::ShadowPass(std::vector< std::pair<std::string, dx::XMMATRIX> >& d
 		ID3D11DepthStencilView* dsView = m_shadowlightManager.GetDSVP(lightIndex);
 		m_immediateContext->ClearDepthStencilView(dsView, D3D11_CLEAR_DEPTH, 1, 0);
 		m_immediateContext->OMSetRenderTargets(0, nullptr, dsView);
-
-		m_immediateContext->VSSetConstantBuffers(0, 1, m_shadowlightManager.GetVSCBufferPP());
-
 
 		//Render loop
 		for (auto& asset : m_assets)
@@ -868,6 +900,10 @@ void Renderer::ShadowPass(std::vector< std::pair<std::string, dx::XMMATRIX> >& d
 				if (asset.second.GetMesh(drawTargets[i].first, mesh))
 				{
 					//Per mesh updates
+					if ( !UpdateVertexConstantBuffer(drawTargets[i].second, m_shadowlightManager.GetDXCamera(lightIndex)) ) { infoDump((unsigned)__LINE__); return; }
+					m_immediateContext->VSSetConstantBuffers(0, 1, m_vConstBuffer.GetAddressOf());
+
+
 					if (!UpdateVertexBuffer(mesh)) { infoDump((unsigned)__LINE__); return; }
 					if (!UpdateIndexBuffer(mesh)) { infoDump((unsigned)__LINE__); return; }
 					m_immediateContext->IASetVertexBuffers(0, 1, m_vertexBuffer.GetAddressOf(), &stride, &offset);
@@ -970,7 +1006,7 @@ bool Renderer::UpdateImageMap()
 			{
 				case 1: format = DXGI_FORMAT_R8_UNORM; break;
 				case 2: format = DXGI_FORMAT_R8G8_UNORM; break;
-				case 3: 
+				case 3: // Redundant
 				case 4: format = DXGI_FORMAT_R8G8B8A8_UNORM; break;
 			}
 			D3D11_TEXTURE2D_DESC textureDesc = {};

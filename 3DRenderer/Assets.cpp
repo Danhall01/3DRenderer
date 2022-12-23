@@ -229,6 +229,11 @@ inline void Assets::LoadToImage(const std::string& path, const std::string& file
 		return;
 	Image image = {};
 	image.img = stbi_load((path + filename).c_str(), &image.width, &image.height, &image.channels, 4);
+	if (image.channels == 3) 
+	{
+		image.channels = 4;
+	}
+
 	m_images.emplace(filename, image);
 }
 
@@ -436,9 +441,15 @@ bool Assets::ParseFromMtlFile(std::string path, std::string filename, bool sever
 				tex.Clear();
 			}
 			pstream >> currentTexID;
+			// Set maps in case they are missing
 			tex.SetImageKa(DEFAULT_MAP_KA);
 			tex.SetImageKd(DEFAULT_MAP_LIGHT);
 			tex.SetImageKs(DEFAULT_MAP_LIGHT);
+
+			// Set Ka, Kd, Ks in case they are missing
+			tex.SetKa({ 1.0f, 1.0f, 1.0f });
+			tex.SetKd({ 1.0f, 1.0f, 1.0f });
+			tex.SetKs({ 1.0f, 1.0f, 1.0f });
 			break;
 
 		case cmd_ns:
