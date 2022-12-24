@@ -25,11 +25,12 @@ struct light
     float4 lightClrIntensity;
     float4 lightDirRange;
     float4 lightCosOuterInnerSMapCount;
+    matrix VPMatrix;
 };
 StructuredBuffer<light> lightBuffer : register(t5);
 cbuffer lightingData : register(b0)
 {
-    uint4 CamPosLightCount; // X Y Z Count
+    uint4 CamPosLightCount; // X Y Z Amount of lights
 };
 
 
@@ -122,6 +123,33 @@ float3 PhongLighting(float3 lightClr, float3 L, float3 N, float3 V,
 
 
 
+bool HasShadow(uint index, float4 wsPos)
+{
+    float4 pos = wsPos;
+    float shadowLightIndex = lightBuffer[index].lightCosOuterInnerSMapCount.w;
+    matrix vpMatrix = lightBuffer[index].VPMatrix;
+    
+    pos = mul(pos, vpMatrix);
+    
+    // Normaliced Device Coordinate
+    float4 NDCPos = pos / pos.w;
+    
+    float depthCalc = NDCPos.z;
+    
+    
+    
+    
+    float3 UV = float3(NDCPos.x * 0.5f + 0.5f, NDCPos.y * -0.5f + 0.5f, shadowLightIndex);
+    
+    float3 depthSample = in_shadowMap.SampleLevel(shadowSampler, UV, 0);
+    
+    if (depthCalc >= (depthSample.x + 0.001f))
+    {
+        return true;
+    }
+    return false;
+}
+
 [numthreads(16, 16, 1)]
 void main( uint3 threadID : SV_DispatchThreadID )
 {
@@ -150,9 +178,15 @@ void main( uint3 threadID : SV_DispatchThreadID )
     float3 specularClr = Ks * in_specularClr.SampleLevel(sState, texcoord, 0).xyz;
     
     // Gather lighting
-    float3 lighting = float3(0.0f, 0.0f, 0.0f);
+    float3 lighting = float3(0.1f, 0.1f, 0.1f); // ambient
     for (uint i = 0; i < CamPosLightCount.w; i++)
     {
+        bool enabledShadow = lightBuffer[i].lightCosOuterInnerSMapCount.z == 1.0f;
+        if (enabledShadow && HasShadow(i, wspos))
+        {
+            continue;
+        }
+        
         // Sample light
         float3 lightpos       = lightBuffer[i].lightPosType.xyz;
         float3 lightclr       = lightBuffer[i].lightClrIntensity.xyz;
@@ -184,6 +218,7 @@ void main( uint3 threadID : SV_DispatchThreadID )
             float3 V = normalize(CamPosLightCount.xyz - wspos.xyz);
             lighting += PhongLighting(lightclr, L, N, V, lightIntensity, Shininess);
         }
+        
     }
     float3 baseClr = ambientClr.xyz * diffuseClr * specularClr;
     UAC[threadID.xy] = saturate(float4(

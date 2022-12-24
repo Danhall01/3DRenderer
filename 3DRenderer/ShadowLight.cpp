@@ -15,8 +15,16 @@ bool ShadowLight::AddLight(const Light& light, const wWindow& window)
     if (m_lightData.size() >= MAX_LIGHT_COUNT)
         return false;
 
+    // TODO: Make them change depending on type of light
+    //float fovDeg = 90;
+    //switch(static_cast<int>(light.Position_Type[3]))
+    //{
+    //case LIGHT_TYPE_SPOTLIGHT: fovDeg = 45;
+    //}
 
-    float fovDeg = 90;
+    float fovDeg = 150;
+
+
     float aspectRatio = window.GetWindowRatio(); //hard coded from base values
 
     Camera dxCam = Camera(
@@ -50,16 +58,17 @@ dx::XMMATRIX ShadowLight::At(int index) const
 {
     return (*this)[index];
 }
-//Returns the WVP matrix for the given light (if any)
+//Returns the VP matrix for the given light (if any)
 dx::XMMATRIX ShadowLight::operator[](int index) const
 {
     if (index < 0 || index > m_lightData.size())
     {
         return dx::XMMatrixIdentity();
     }    
-    return 
-        dx::XMMatrixTranspose(m_lightCams[index].GetViewMatrix()) *
-        dx::XMMatrixTranspose(m_lightCams[index].GetProjectionMatrix());
+    return (
+        dx::XMMatrixTranspose(m_lightCams[index].GetProjectionMatrix()) *
+        dx::XMMatrixTranspose(m_lightCams[index].GetViewMatrix())
+        );
 }
 
 const Camera& ShadowLight::GetDXCamera(int index) const
@@ -83,14 +92,6 @@ ID3D11DepthStencilView*const* ShadowLight::GetDSVPP(int index) const
     return m_sMapDSV[index].GetAddressOf();
 }
 
-ID3D11Buffer* ShadowLight::GetVSCBufferP() const
-{
-    return m_cCamBuffer.Get();
-}
-ID3D11Buffer*const* ShadowLight::GetVSCBufferPP() const
-{
-    return m_cCamBuffer.GetAddressOf();
-}
 
 ID3D11ShaderResourceView* ShadowLight::GetSRVP() const
 {
@@ -116,8 +117,6 @@ ID3D11SamplerState*const* ShadowLight::GetShadowSamplerPP() const
 HRESULT ShadowLight::Init(ID3D11Device* device, const wWindow& window)
 {
     HRESULT hr = {};
-    if (FAILED(hr = InitConstantBuffer(device)))
-        return hr;
 
     if (FAILED(hr = InitShadowMap(device, window)))
         return hr;
@@ -131,50 +130,6 @@ HRESULT ShadowLight::Init(ID3D11Device* device, const wWindow& window)
     return hr;
 }
 
-HRESULT ShadowLight::InitConstantBuffer(ID3D11Device* device)
-{
-    HRESULT hr = {};
-
-    D3D11_BUFFER_DESC desc = {};
-    desc.Usage               = D3D11_USAGE_DYNAMIC;
-    desc.BindFlags           = D3D11_BIND_CONSTANT_BUFFER;
-    desc.CPUAccessFlags      = D3D11_CPU_ACCESS_WRITE;
-    desc.ByteWidth           = sizeof(CbufferData);
-    desc.StructureByteStride = 0;
-    desc.MiscFlags           = 0;
-
-    hr = device->CreateBuffer(
-        &desc,
-        nullptr,
-        m_cCamBuffer.GetAddressOf()
-    );
-    return hr;
-}
-bool ShadowLight::UpdateCamConstantBuffer(int index, ID3D11DeviceContext* dContext)
-{
-    HRESULT hr = {};
-
-    if (index > m_lightData.size() || index < 0)
-    {
-        hr = E_ACCESSDENIED;
-        return false;
-    }
-    CbufferData data = { m_lightCams[index].GetViewMatrix() * m_lightCams[index].GetProjectionMatrix() };
-
-    D3D11_MAPPED_SUBRESOURCE mResource = {};
-    hr = dContext->Map(m_cCamBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mResource);
-    if (FAILED(hr))
-        return false;
-    memcpy(
-        mResource.pData,
-        &data,
-        sizeof(data)
-    );
-    dContext->Unmap(m_cCamBuffer.Get(), 0);
-
-
-    return SUCCEEDED(hr);
-}
 
 HRESULT ShadowLight::InitShadowMap(ID3D11Device* device, const wWindow& window)
 {

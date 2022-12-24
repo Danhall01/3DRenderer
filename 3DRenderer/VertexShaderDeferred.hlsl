@@ -26,11 +26,12 @@ VSOutput main(VSInput input)
     matrix wvMatrix = mul(worldMatrix, viewMatrix);
     matrix wvpMatrix = mul(wvMatrix, projectionMatrix);
    
+    float4 pos = float4(input.position, 1.0f);
     
-    output.outPosition  = mul(float4(input.position, 1.0f), wvpMatrix);
-    output.outWPosition = mul(float4(input.position, 1.0f), worldMatrix);
+    output.outPosition = mul(pos, wvpMatrix);
+    output.outWPosition = mul(pos, worldMatrix);
     output.outNormal = mul(float4(input.normal, 0.0f), normalWMatrix);
     
-    output.outUV        = input.UV;
+    output.outUV = input.UV;
 	return output;
 }

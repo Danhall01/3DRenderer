@@ -431,6 +431,24 @@ bool Renderer::UpdateLighting()
 	
 	if (allLight.size() > LIGHT_MAX_COUNT)
 		return false;
+
+
+	// Update the matrixes
+	int shadowLightAmount = 0;
+	for ( auto& light : allLight )
+	{
+		if (light.CosOuter_Inner_SMap_count[2] == 1)
+		{
+			light.shadowVPMatrix = m_shadowlightManager.GetLightVPMatrix(shadowLightAmount);
+			++shadowLightAmount;
+		}
+		else
+		{
+			light.shadowVPMatrix = dx::XMMatrixIdentity();
+		}
+	}
+
+
 	// Update lighting buffer
 	D3D11_MAPPED_SUBRESOURCE m_ResourceSRV = {};
 	m_hr = m_immediateContext->Map(m_lightBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &m_ResourceSRV);
@@ -839,7 +857,8 @@ void Renderer::DrawDeferred(std::vector< std::pair<std::string, dx::XMMATRIX> >&
 	m_immediateContext->CSSetUnorderedAccessViews(0, 1, m_uav[0].GetAddressOf(), 0);
 	m_immediateContext->CSSetShaderResources(0, (BUFFER_COUNT + 1), m_deferredSRVInput[0].GetAddressOf());
 	m_immediateContext->CSSetConstantBuffers(0, 1, m_lightCount.GetAddressOf());
-	
+
+
 	//Added shadows
 	// shadow sampler bind
 	m_immediateContext->CSSetSamplers(1, 1, m_shadowlightManager.GetShadowSamplerPP());
@@ -876,7 +895,6 @@ void Renderer::ShadowPass(std::vector< std::pair<std::string, dx::XMMATRIX> >& d
 	//Unbind srv conected to RTV
 	ID3D11ShaderResourceView* nullSRV[BUFFER_COUNT + 2] = { nullptr };
 	m_immediateContext->CSSetShaderResources(0, BUFFER_COUNT + 2, nullSRV);
-
 
 
 	m_immediateContext->RSSetViewports(1, &m_viewport);

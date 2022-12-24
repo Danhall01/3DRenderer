@@ -40,19 +40,13 @@ public:
 	ID3D11DepthStencilView* GetDSVP(int index) const;
 	ID3D11DepthStencilView*const* GetDSVPP(int index) const;
 
-	ID3D11Buffer* GetVSCBufferP() const;
-	ID3D11Buffer*const* GetVSCBufferPP() const;
-
 	ID3D11ShaderResourceView* GetSRVP() const;
 	ID3D11ShaderResourceView*const* GetSRVPP() const;
 
 	ID3D11SamplerState* GetShadowSamplerP() const;
 	ID3D11SamplerState*const* GetShadowSamplerPP() const;
 
-	bool UpdateCamConstantBuffer(int index, ID3D11DeviceContext* dContext);
 private:
-	HRESULT InitConstantBuffer(ID3D11Device* device);
-
 	HRESULT InitShadowMap(ID3D11Device* device, const wWindow& window);
 	HRESULT InitDSV(ID3D11Device* device);
 	HRESULT InitSRV(ID3D11Device* device);
@@ -64,7 +58,6 @@ private:
 
 	std::vector<Light> m_lightData;
 	std::vector<Camera> m_lightCams;
-	WRL::ComPtr<ID3D11Buffer> m_cCamBuffer;
 
 	WRL::ComPtr<ID3D11SamplerState> m_shadowSampler;
 

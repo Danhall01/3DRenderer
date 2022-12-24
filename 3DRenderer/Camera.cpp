@@ -29,7 +29,6 @@ Camera::Camera(float right, float up, float forward, float x, float y, float z, 
 	
 
 
-    z = -z;
     if (x == 0.0f)
     {
         if (y > 0.0f)
@@ -92,14 +91,13 @@ Camera::Camera(float right, float up, float forward, float x, float y, float z, 
     {
         // Calculate the pitch angle
         m_rotation.x = atan2f(-y, z);
-
+        
         // Calculate the yaw angle
         m_rotation.y = atan2f(-x, z);
     }
-    m_rotation.z = 0; // No rotation used
 
     m_rotation.x *= -1;
-
+    m_rotation.z = 0;
 
 	UpdateProjectionMatrix(fovDegrees, aspectRatio, nearZ, farZ);
 	UpdateViewMatrix();

@@ -180,7 +180,7 @@ int APIENTRY wWinMain(
 	Light lightTest = {};
 	lightTest.Position_Type   = { 4.0f, 5.0f, 0.0f, LIGHT_TYPE_SPOTLIGHT };
 	lightTest.Color_Intensity = { 0.7275f, 0.1412f, 0.2314f, 2.5f };
-	lightTest.Direction_Range = { 0.0f, -1.0f, 0.0f, 20.0f};
+	lightTest.Direction_Range = { 0.0f, -1.0f, 0.0f, 50.0f};
 	lightTest.CosOuter_Inner_SMap_count = { static_cast<float>(0/*Cos PI/2*/), static_cast<float>(0.7071f/*Cos PI/4*/), 1.0f, 0.0f };
 	renderer.AddShadowLight(lightTest, hWindow);
 
@@ -193,8 +193,8 @@ int APIENTRY wWinMain(
 
 	Light lightTest2 = {};
 	lightTest2.Position_Type = { -15.0f, 5.0f, 0.0f, LIGHT_TYPE_SPOTLIGHT };
-	lightTest2.Color_Intensity = { 0.3f, 0.8f, 0.2f, 0.5f };
-	lightTest2.Direction_Range = { 0.0f, -1.0f, 0.0f, 20.0f };
+	lightTest2.Color_Intensity = { 0.3f, 0.8f, 0.2f, 1.5f };
+	lightTest2.Direction_Range = { 0.0f, -1.0f, 0.0f, 50.0f };
 	lightTest2.CosOuter_Inner_SMap_count = { static_cast<float>(0/*Cos PI/2*/), static_cast<float>(0.7071/*Cos PI/4*/), 1.0f, 1.0f};
 	renderer.AddShadowLight(lightTest2, hWindow);
 
@@ -206,15 +206,15 @@ int APIENTRY wWinMain(
 
 
 	Light lightTest3 = {};
-	lightTest3.Position_Type = { 0.0f, 0.0f, 0.0f, LIGHT_TYPE_DIRECTIONAL };
-	lightTest3.Color_Intensity = { 1.0f, 1.0f, 1.0f, 0.2f };
-	lightTest3.Direction_Range = { 0.7071f, -0.7071f, 0.0f, 0.0f };
-	lightTest3.CosOuter_Inner_SMap_count = { 0.0f, 0.0f, 0.0f, 0.0f };
-	renderer.AddLight(lightTest3);
+	lightTest3.Position_Type = { 0.0f, 15.0f, 0.0f, LIGHT_TYPE_DIRECTIONAL };
+	lightTest3.Color_Intensity = { 1.0f, 1.0f, 1.0f, 0.5f };
+	lightTest3.Direction_Range = { 0.0f, -1.0f, 0.0f, 20.0f };
+	lightTest3.CosOuter_Inner_SMap_count = { 0.0f, 0.0f, 1.0f, 0.0f };
+	renderer.AddShadowLight(lightTest3, hWindow);
 
 	std::string sun3 = "cube";
 	dx::XMMATRIX sunMatrix3 = dx::XMMatrixScaling(0.1f, 0.1f, 0.1f) *
-		dx::XMMatrixTranslation(lightTest3.Position_Type[0], lightTest3.Position_Type[1], lightTest3.Position_Type[2]);
+		dx::XMMatrixTranslation(lightTest3.Position_Type[0], lightTest3.Position_Type[1] + 1, lightTest3.Position_Type[2]);
 	drawable.push_back({ sun3, sunMatrix3 });
 
 	//########### SCENE END ################

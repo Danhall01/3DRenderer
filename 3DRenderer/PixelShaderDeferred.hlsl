@@ -33,7 +33,7 @@ PSOutput main(PSInput input)
 {
     PSOutput output;
     
-    output.wpos = float4(input.wsPosition);
+    output.wpos = input.wsPosition;
     output.normal = float4(input.normal.xyz, Ns);
     
     output.color = float4(mapKa.Sample(sState, input.UV).xyz, Ka.x);

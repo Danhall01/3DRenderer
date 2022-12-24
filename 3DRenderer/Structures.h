@@ -82,6 +82,9 @@ struct Light
 	std::array<float, 4> Direction_Range;
 	// cos inner circle - outer, if shadow, index for shadow
 	std::array<float, 4> CosOuter_Inner_SMap_count;
+
+	//Light vp-matrix
+	dx::XMMATRIX shadowVPMatrix;
 };
 struct LightCData
 {
