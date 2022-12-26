@@ -1099,7 +1099,7 @@ void Renderer::RenderDrawTargets(const Assets& currentAsset,
 			m_immediateContext->IASetIndexBuffer(m_indexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0);
 
 #if LOD
-			if (!UpdateLODCBuffer(mesh, 10.0f)) { infoDump((unsigned)__LINE__); return; }
+			if (!UpdateLODCBuffer(mesh, 32.0f)) { infoDump((unsigned)__LINE__); return; }
 			m_immediateContext->HSSetConstantBuffers(0, 1, m_LODCBuffer.GetAddressOf());
 			m_immediateContext->DSSetConstantBuffers(0, 1, m_vConstBuffer.GetAddressOf());
 #endif

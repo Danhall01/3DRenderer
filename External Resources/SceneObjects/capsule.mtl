@@ -1,0 +1,5 @@
+newmtl material0
+Ns 0.000000
+map_Ka capsule0.jpg
+map_Kd capsule0.jpg
+map_Ks capsule0.jpg

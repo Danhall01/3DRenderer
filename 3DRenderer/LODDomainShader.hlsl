@@ -43,7 +43,9 @@ DS_OUTPUT main(
     // Additional information: NVIDIA
     
     // LERP
-    float3 posVertex = domain.x * patch[0].vPosition.xyz + domain.y * patch[1].vPosition.xyz + domain.z * patch[2].vPosition.xyz;
+    float3 posVertex = domain.x * patch[0].vPosition.xyz + 
+                        domain.y * patch[1].vPosition.xyz + 
+                         domain.z * patch[2].vPosition.xyz;
     
     // Projected vectors to the nodes (tangent planes)
     float3 projectedVec1 = dot(patch[0].vPosition.xyz - posVertex, patch[0].Normal.xyz) * patch[0].Normal.xyz;
@@ -51,9 +53,11 @@ DS_OUTPUT main(
     float3 projectedVec3 = dot(patch[2].vPosition.xyz - posVertex, patch[2].Normal.xyz) * patch[2].Normal.xyz;
     
     // LERP
-    float3 offSet = domain.x * projectedVec1 + domain.y * projectedVec2 + domain.z * projectedVec3;
+    float3 offSet = domain.x * projectedVec1 + 
+                     domain.y * projectedVec2 + 
+                      domain.z * projectedVec3;
     
-    float alpha = 0.75;
+    float alpha = 1.0f;
     posVertex += alpha * offSet;
     
     

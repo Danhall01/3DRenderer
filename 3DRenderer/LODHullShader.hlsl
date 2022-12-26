@@ -39,8 +39,8 @@ HS_CONSTANT_DATA_OUTPUT CalcHSPatchConstants(
 	
     //float k = 0.058; // 71m
     float k = 0.017; // 242m
-    tesFactor = exp( -k * distance ) * tesBaseFactor;
-    tesFactor = tesFactor < 0.1 ? 0 : tesFactor;
+    tesFactor = exp( -k * distance ) * tesBaseFactor.x;
+    tesFactor = clamp(tesFactor, 1.0f, tesBaseFactor.x);
 	
     Output.EdgeTessFactor[0] =
 		Output.EdgeTessFactor[1] =
