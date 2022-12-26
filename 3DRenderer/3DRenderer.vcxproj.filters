@@ -60,6 +60,9 @@
   </ItemGroup>
   <ItemGroup>
     <Text Include="README.md" />
+    <Text Include="enables.h">
+      <Filter>Resource Files\Misc</Filter>
+    </Text>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="wWindow.h">
@@ -104,6 +107,12 @@
       <Filter>Resource Files\Shaders</Filter>
     </FxCompile>
     <FxCompile Include="ShadowPassVS.hlsl">
+      <Filter>Resource Files\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="LODHullShader.hlsl">
+      <Filter>Resource Files\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="LODDomainShader.hlsl">
       <Filter>Resource Files\Shaders</Filter>
     </FxCompile>
   </ItemGroup>

@@ -101,11 +101,15 @@ struct ShaderSet
 {
 	//Shaders
 	WRL::ComPtr<ID3D11VertexShader>     vertexShader;
+	//LOD
 	WRL::ComPtr<ID3D11HullShader>       hullShader;
 	WRL::ComPtr<ID3D11DomainShader>     domainShader;
+	//
 	WRL::ComPtr<ID3D11GeometryShader>   geometryShader;
+
 	WRL::ComPtr<ID3D11PixelShader>      pixelShader;
 
+	//Deferred pass
 	WRL::ComPtr<ID3D11ComputeShader>    computeShader;
 };
 struct GraphicsBuffer
@@ -113,6 +117,12 @@ struct GraphicsBuffer
 	WRL::ComPtr<ID3D11Texture2D> texture;
 	WRL::ComPtr<ID3D11RenderTargetView> renderTargetView;
 	WRL::ComPtr<ID3D11ShaderResourceView> shaderResourceView;
+};
+struct LODCBufferData 
+{
+	float CamPos[4];
+	float MeshPos[4];
+	float TesFactor[4];
 };
 
 enum lightType

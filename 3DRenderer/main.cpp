@@ -146,6 +146,7 @@ int APIENTRY wWinMain(
 
 
 
+	//########### SCENE ################
 	
 	// Create the render list
 	std::vector<std::pair<std::string, DirectX::XMMATRIX>> drawable;
@@ -173,9 +174,8 @@ int APIENTRY wWinMain(
 	drawable.push_back({ monkey, matrixMonkey });
 
 
-	//########### SCENE ################
 
-	// Lighting
+	// ########## Lighting ##########
 	
 	Light lightTest = {};
 	lightTest.Position_Type   = { 4.0f, 5.0f, 0.0f, LIGHT_TYPE_SPOTLIGHT };

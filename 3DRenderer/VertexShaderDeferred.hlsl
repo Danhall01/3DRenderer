@@ -1,3 +1,5 @@
+#include "enables.h"
+
 struct VSInput
 {
     float3 position : POSITION0;
@@ -6,7 +8,9 @@ struct VSInput
 };
 struct VSOutput
 {
-    float4 outPosition  : SV_POSITION;
+#if !LOD
+    float4 outPosition : SV_POSITION;
+#endif
     float4 outNormal    : NORMAL0;
     float4 outWPosition : WSPOS0;
     float2 outUV        : UV0;
@@ -28,9 +32,12 @@ VSOutput main(VSInput input)
    
     float4 pos = float4(input.position, 1.0f);
     
-    output.outPosition = mul(pos, wvpMatrix);
     output.outWPosition = mul(pos, worldMatrix);
-    output.outNormal = mul(float4(input.normal, 0.0f), normalWMatrix);
+    output.outNormal = normalize(mul(float4(input.normal, 0.0f), normalWMatrix));
+    
+#if !LOD
+    output.outPosition = mul(pos, wvpMatrix);
+#endif
     
     output.outUV = input.UV;
 	return output;

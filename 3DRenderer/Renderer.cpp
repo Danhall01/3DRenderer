@@ -13,6 +13,7 @@ constexpr auto BYTEWIDTH_LIGHT_MAX = sizeof(Light) * LIGHT_MAX_COUNT;
 #include <assert.h>
 #include <comdef.h>
 
+#include "enables.h"
 
 //Window helper
 wWindow Renderer::CreateWWindow(HINSTANCE instance, int nCmdShow, std::function<void(MSG&)> eventFunction)
@@ -109,6 +110,9 @@ bool Renderer::Build(wWindow window)
 		m_deferredRTVOutput[i] = m_gbuffer[i].renderTargetView;
 		m_deferredSRVInput[i] = m_gbuffer[i].shaderResourceView;
 	}
+#if LOD
+	if (!BuildLOD(shaderBlob))						   { infoDump((unsigned)__LINE__); return false; }
+#endif
 
 	//Lighting
 	if (!BuildLightBuffer())                   { infoDump((unsigned)__LINE__); return false; }
@@ -512,6 +516,48 @@ bool Renderer::BuildShadowPass(ID3DBlob* shaderBlob, wWindow window)
 	return SUCCEEDED(m_hr);
 }
 
+bool Renderer::UpdateLODCBuffer(const Mesh& mesh, float tesFactor)
+{
+	// Mesh position: 
+	// From the world matrix:
+	// 0 0 0 0
+	// 0 0 0 0
+	// 0 0 0 0
+	// x y z 0
+	dx::XMVECTOR meshScale = {};
+	dx::XMVECTOR meshRotQuat = {};
+
+	dx::XMVECTOR meshTranslation = {};
+	if (!dx::XMMatrixDecompose(&meshScale, &meshRotQuat, &meshTranslation, mesh.GetMatrix()))
+	{
+		return false;
+	}
+	dx::XMFLOAT3 meshPos = {};
+	dx::XMStoreFloat3(&meshPos, meshTranslation);
+
+	// Cam pos
+	dx::XMFLOAT3 camPos = m_dxCam.GetPositionFloat3();
+	
+
+	// Upload data
+	LODCBufferData newData = {
+		{camPos.x,  camPos.y,  camPos.z,  0.0f},
+		{meshPos.x, meshPos.y, meshPos.z, 0.0f},
+		{tesFactor, tesFactor, tesFactor, tesFactor}
+	};
+	D3D11_MAPPED_SUBRESOURCE m_ResourceSRV = {};
+	m_hr = m_immediateContext->Map(m_LODCBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &m_ResourceSRV);
+	if (FAILED(m_hr))
+		return false;
+	memcpy(
+		m_ResourceSRV.pData,
+		&newData,
+		sizeof(newData)
+	);
+	m_immediateContext->Unmap(m_LODCBuffer.Get(), 0);
+	return SUCCEEDED(m_hr);
+}
+
 
 // Buffers
 bool Renderer::BuildVertexBuffer()
@@ -761,6 +807,73 @@ bool Renderer::BuildUnorderedAccessView(const wWindow& window)
 	return SUCCEEDED(m_hr);
 }
 
+// LOD
+bool Renderer::BuildLOD(ID3DBlob* shaderBlob)
+{
+#if _DEBUG
+	wchar_t hsPath[] = L"../x64/Debug/LODHullShader.cso";
+	wchar_t dsPath[] = L"../x64/Debug/LODDomainShader.cso";
+#else
+	wchar_t hsPath[] = L"../x64/Release/LODHullShader.cso";
+	wchar_t dsPath[] = L"../x64/Release/LODDomainShader.cso";
+#endif
+
+
+	// Hull shader
+	m_hr = D3DReadFileToBlob(hsPath, &shaderBlob);
+	if (FAILED(m_hr))
+		return false;
+	m_hr = m_device->CreateHullShader(
+		shaderBlob->GetBufferPointer(),
+		shaderBlob->GetBufferSize(),
+		NULL,
+		m_shaders[0].hullShader.GetAddressOf()
+	);
+	if (FAILED(m_hr))
+		return false;
+
+	// Domain Shader
+	m_hr = D3DReadFileToBlob(dsPath, &shaderBlob);
+	if (FAILED(m_hr))
+		return false;
+	m_hr = m_device->CreateDomainShader(
+		shaderBlob->GetBufferPointer(),
+		shaderBlob->GetBufferSize(),
+		NULL,
+		m_shaders[0].domainShader.GetAddressOf()
+	);
+	if (FAILED(m_hr))
+		return false;
+
+
+	//Cbuffer: 
+	D3D11_BUFFER_DESC Desc = {};
+	Desc.Usage               = D3D11_USAGE_DYNAMIC;
+	Desc.BindFlags           = D3D11_BIND_CONSTANT_BUFFER;
+	Desc.CPUAccessFlags      = D3D11_CPU_ACCESS_WRITE;
+	Desc.ByteWidth           = sizeof(LODCBufferData);
+	Desc.StructureByteStride = 0;
+	Desc.MiscFlags           = 0;
+
+	LODCBufferData data = {
+		{ 0.0f, 0.0f, 0.0f, 0.0f },
+		{ 0.0f, 0.0f, 0.0f, 0.0f },
+		{ 1.0f, 1.0f, 1.0f, 1.0f }
+	};
+
+	D3D11_SUBRESOURCE_DATA subData = {};
+	subData.pSysMem          = &data;
+	subData.SysMemPitch      = 0;
+	subData.SysMemSlicePitch = 0;
+
+	m_hr = m_device->CreateBuffer(
+		&Desc,
+		&subData,
+		m_LODCBuffer.GetAddressOf()
+	);
+	return SUCCEEDED(m_hr);
+}
+
 
 void Renderer::infoDump(unsigned line)
 {
@@ -821,7 +934,11 @@ void Renderer::DrawDeferred(std::vector< std::pair<std::string, dx::XMMATRIX> >&
 	UINT offset = 0;
 
 	//Once per present
+#if LOD
+	m_immediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_3_CONTROL_POINT_PATCHLIST);
+#else
 	m_immediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+#endif
 	m_immediateContext->RSSetViewports(1, &m_viewport);
 	m_immediateContext->PSSetSamplers(0, 1, m_samplerState.GetAddressOf());
 
@@ -980,6 +1097,12 @@ void Renderer::RenderDrawTargets(const Assets& currentAsset,
 			if (!UpdateIndexBuffer(mesh)) { infoDump((unsigned)__LINE__); return; }
 			m_immediateContext->IASetVertexBuffers(0, 1, m_vertexBuffer.GetAddressOf(), &stride, &offset);
 			m_immediateContext->IASetIndexBuffer(m_indexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0);
+
+#if LOD
+			if (!UpdateLODCBuffer(mesh, 10.0f)) { infoDump((unsigned)__LINE__); return; }
+			m_immediateContext->HSSetConstantBuffers(0, 1, m_LODCBuffer.GetAddressOf());
+			m_immediateContext->DSSetConstantBuffers(0, 1, m_vConstBuffer.GetAddressOf());
+#endif
 
 			Texture tex = {};
 			for (auto& submesh : mesh.GetSubmeshMap())

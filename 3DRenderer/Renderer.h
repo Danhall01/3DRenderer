@@ -75,6 +75,9 @@ private:
 	//Build Deferred
 	bool BuildGraphBuffer(const wWindow& window);
 	bool BuildUnorderedAccessView(const wWindow& window);
+	//Build LOD
+	bool BuildLOD(ID3DBlob* shaderBlob);
+
 
 	// Index / Vertex buffer functions
 	bool BuildVertexBuffer();
@@ -98,6 +101,10 @@ private:
 	// Lights Helper Functions
 	bool BuildLightBuffer();
 	bool BuildShadowPass(ID3DBlob* shaderBlob, wWindow window);
+
+	// LOD Helper Functions
+	bool UpdateLODCBuffer(const Mesh& mesh, float tesFactor);
+
 
 	// Image Helper functions
 	bool UpdateImageMap();
@@ -131,6 +138,7 @@ private: //D3D11 VARIABLES
 	std::vector<ShaderSet>                      m_shaders;
 	std::vector<WRL::ComPtr<ID3D11InputLayout>> m_inputLayout;
 
+	WRL::ComPtr<ID3D11Buffer>					m_LODCBuffer;
 	WRL::ComPtr<ID3D11VertexShader>             m_shadowVertexShader;
 
 
