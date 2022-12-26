@@ -23,11 +23,11 @@ Camera::Camera(float right, float up, float forward, float fovDegrees, float asp
 	UpdateProjectionMatrix(fovDegrees, aspectRatio, nearZ, farZ);
 	UpdateViewMatrix();
 }
-Camera::Camera(float right, float up, float forward, float x, float y, float z, float fovDegrees, float aspectRatio, float nearZ, float farZ)
+Camera::Camera(float right, float up, float forward, float x, float y, float z, float fovDegrees, float aspectRatio, float nearZ, float farZ, const lightType type)
 {
 	m_position = { right, up, forward };
 	
-
+    
 
     if (x == 0.0f)
     {
@@ -99,7 +99,15 @@ Camera::Camera(float right, float up, float forward, float x, float y, float z, 
     m_rotation.x *= -1;
     m_rotation.z = 0;
 
-	UpdateProjectionMatrix(fovDegrees, aspectRatio, nearZ, farZ);
+    if (type == LIGHT_TYPE_DIRECTIONAL)
+    {
+        UpdateProjectionMatrixOrthographic(35.0f, 35.0f, nearZ, farZ);
+    }
+    else
+    {
+	    UpdateProjectionMatrix(fovDegrees, aspectRatio, nearZ, farZ);
+    }
+
 	UpdateViewMatrix();
 }
 
@@ -141,6 +149,10 @@ void Camera::UpdateProjectionMatrix(float fovDegrees, float aspectRatio, float n
 {
 	float fovRad = (fovDegrees / 360.0f) * dx::XM_2PI;
 	m_projectionMatrix = dx::XMMatrixPerspectiveFovLH(fovRad, aspectRatio, nearZ, farZ);
+}
+void Camera::UpdateProjectionMatrixOrthographic(float viewWidth, float viewHeight, float nearZ, float farZ)
+{
+    m_projectionMatrix = dx::XMMatrixOrthographicLH(viewWidth, viewHeight, nearZ, farZ);
 }
 
 

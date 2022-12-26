@@ -32,7 +32,8 @@ bool ShadowLight::AddLight(const Light& light, const wWindow& window)
         light.Direction_Range[0], light.Direction_Range[1], light.Direction_Range[2],
         fovDeg,
         aspectRatio,
-        0.1f, light.Direction_Range[3]
+        0.1f, light.Direction_Range[3],
+        static_cast<lightType>(light.Position_Type[3])
     );
     m_lightCams.push_back(dxCam);
     m_lightData.push_back(light);

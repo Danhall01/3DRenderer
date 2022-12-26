@@ -12,7 +12,8 @@ public:
 	Camera(
 		float right, float up, float forward,
 		float x, float y, float z,
-		float fovDegrees, float aspectRatio, float nearZ, float farZ);
+		float fovDegrees, float aspectRatio, float nearZ, float farZ,
+		const lightType type);
 	~Camera() = default;
 
 	Camera operator=(const Camera& otherCam);
@@ -25,6 +26,7 @@ public:
 
 
 	void UpdateProjectionMatrix(float fovDegrees, float aspectRatio, float nearZ, float farZ);
+	void UpdateProjectionMatrixOrthographic(float viewWidth, float viewHeight, float nearZ, float farZ);
 	void UpdateViewMatrix();
 
 	void AddPosition(float right, float up, float forward);
