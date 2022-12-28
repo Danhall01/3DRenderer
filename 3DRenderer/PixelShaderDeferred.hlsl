@@ -42,7 +42,9 @@ PSOutput main(PSInput input)
     PSOutput output;
     
     output.wpos = input.wsPosition;
-    output.normal = float4(input.normal.xyz, Ns);
+    float3 normal = normalize(input.normal.xyz);
+    output.normal = float4(normal, Ns);
+    
     if (enabled_camPos.x == 1) // Cube mapping texture
     {
         float3 camToFragment = enabled_camPos.yzw - input.wsPosition.xyz;

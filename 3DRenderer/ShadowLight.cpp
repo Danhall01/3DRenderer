@@ -25,14 +25,14 @@ bool ShadowLight::AddLight(const Light& light, const wWindow& window)
     float fovDeg = 150;
 
 
-    float aspectRatio = window.GetWindowRatio(); //hard coded from base values
+    float aspectRatio = window.GetWindowRatio();
 
     Camera dxCam = Camera(
         light.Position_Type[0], light.Position_Type[1], light.Position_Type[2],
         light.Direction_Range[0], light.Direction_Range[1], light.Direction_Range[2],
         fovDeg,
         aspectRatio,
-        0.1f, light.Direction_Range[3],
+        0.1f, light.Direction_Range[3] + 50,
         static_cast<lightType>(light.Position_Type[3])
     );
     m_lightCams.push_back(dxCam);

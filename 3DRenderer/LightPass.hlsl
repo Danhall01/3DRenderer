@@ -40,86 +40,60 @@ Texture2DArray<float> in_shadowMap : register(t6);
 sampler shadowSampler : register(s1);
 
 
-// TODO: REWORK ALL LIGHT FUNCTIONS
+float3 lightCalc(uint index, float3 wsPos, float3 normal, float3 diffuseCLR, float3 specularCLR);
+bool HasShadow(uint index, float4 wsPos);
 
-// Spot light
-float3 SpotLight(float3 lightPos, float3 lightDir, float3 wsPos, float3 camPos, 
-                float3 normal, float3 diffuseClr, float3 specularClr,
-                float shininess, float intensity, float cosConeOuter, 
-                float cosConeInner, float rangeMax, float3 lightClr)
+[numthreads(16, 16, 1)]
+void main( uint3 threadID : SV_DispatchThreadID )
 {
-    // Similar to a desk lamp, a point light restricted by a cone.
-    // When computing light, need to check if we are inside the cone.
-  
-    float3 toLightVec = lightPos - wsPos;
-    float3 toCamVec = normalize(camPos - wsPos);
-    float distToLight = length(toLightVec);
-
-    // Phong diffuse
-    toLightVec /= distToLight;
-    float NDotL = saturate(dot(toLightVec, normal));
-    float3 finalColor = diffuseClr * NDotL;
-    
-    
-   // Blinn specular
-    float3 halfWay = normalize(toCamVec + toLightVec);
-    float NDotH = saturate(dot(halfWay, normal));
-    finalColor += specularClr * pow(NDotH, shininess);
-    
-
-	// Cone attenuation
-    float cosAng = dot(lightDir, toLightVec);
-    float conAttn = saturate((cosAng - cosConeOuter) * (1 / cosConeInner));
-    conAttn *= conAttn;
-    
-    // Attenuation
-    float distToLightNorm = 1.0f - saturate(distToLight * (1 / rangeMax));
-    float attn = distToLightNorm * distToLightNorm;
-    finalColor *= lightClr * attn * conAttn;
-    
-
-    return finalColor * intensity;
-}
-// Directional light
-float3 DirLight(float3 lightDir, float3 wsPos, float3 camPos, float3 normal, float3 diffuseClr,
-                float shininess, float intensity, float3 lightClr)
-{
-    // TODO: CHECK SPECULAR IF IT WORKS HERE
-    
-    
-    
-    float3 toLightVec = normalize(lightDir);
-    float3 toCamVec = normalize(camPos - wsPos);
-    // Phong diffuse
-    float NDotL = dot(toLightVec, normal);
-    float3 finalColor = diffuseClr * saturate(NDotL);
-   
-	// Blinn specular
-    float3 halfWay = normalize(toCamVec + toLightVec);
-    float NDotH = saturate(dot(halfWay, normal));
-    finalColor += lightClr * pow(NDotH, shininess);
-
-    return finalColor * intensity;
-}
-// Point light
-float3 PhongLighting(float3 lightClr, float3 L, float3 N, float3 V, 
-                    float intensity, float shininess)
-{
-    // TODO: Range??
-    
-    
-    float3 R = normalize(2 * dot(N, L) * N - L);
-    float diffuseI = dot(L, N);
-    
-    if (diffuseI < 0.0f)
+    // Transform coordinates into normalised coords
+    float2 texcoord = float2(
+        threadID.x / (WINDOW_WIDTH - 1.0f),
+        threadID.y / (WINDOW_HEIGHT - 1.0f)
+    );
+    // Early return
+    float4 ambientClr = in_clr.SampleLevel(sState, texcoord, 0);
+    if ( (ambientClr.r + ambientClr.g + ambientClr.b) == 0)
     {
-        return float3(0.0f, 0.0f, 0.0f);
+        UAC[threadID.xy] = float4(0.0f, 0.0f, 0.0f, 1.0f);
+        UAV[uint3(threadID.xy, 0)] = float4(0.0f, 0.0f, 0.0f, 1.0f);
+        return;
     }
-    float3 diffuse = max(diffuseI, 0.0f);
-    float3 specular = max(pow(dot(V, R), shininess), float3(0.0f, 0.0f, 0.0f));
+    ambientClr.xyz *= in_clr.SampleLevel(sState, texcoord, 0).w;
     
+    // Sampling
+    float4 wspos     = in_wspos.SampleLevel(sState, texcoord, 0);
+    float3 normal    = in_normal.SampleLevel(sState, texcoord, 0).xyz;
     
-    return lightClr * (diffuse + specular) * intensity;
+    float  Kd        = in_diffuseClr.SampleLevel(sState, texcoord, 0).w;
+    float  Ks        = in_specularClr.SampleLevel(sState, texcoord, 0).w;
+    
+    float3 diffuseClr  = Kd * in_diffuseClr.SampleLevel(sState, texcoord, 0).xyz;
+    float3 specularClr = Ks * in_specularClr.SampleLevel(sState, texcoord, 0).xyz;
+    
+    // Gather lighting
+    float3 lighting = float3(0.0f, 0.0f, 0.0f);
+    for (uint i = 0; i < CamPosLightCount.w; i++)
+    {
+        bool enabledShadow = lightBuffer[i].lightCosOuterInnerSMapCount.z == 1.0f;
+        if (enabledShadow && HasShadow(i, wspos))
+        {
+            continue;
+        }
+        lighting += lightCalc(i, wspos.xyz, normal, diffuseClr, specularClr);
+    }
+    
+    float3 baseClr = ambientClr.xyz;
+    float ambientModifier = 0.5f;
+    UAC[threadID.xy] = saturate(float4(
+        baseClr * ambientModifier + lighting,
+        1.0f
+    ));
+    UAV[uint3(threadID.xy, 0)] = saturate(float4(
+        baseClr + lighting,
+        1.0f
+    ));
+    return;
 }
 
 
@@ -134,6 +108,12 @@ bool HasShadow(uint index, float4 wsPos)
     
     // Normaliced Device Coordinate
     float4 NDCPos = pos / pos.w;
+    
+    // Early return
+    if (abs(NDCPos.x) + abs(NDCPos.y) + abs(NDCPos.z) > 3.0f)
+    {
+        return false;
+    }
     
     float depthCalc = NDCPos.z;
     
@@ -151,84 +131,67 @@ bool HasShadow(uint index, float4 wsPos)
     return false;
 }
 
-[numthreads(16, 16, 1)]
-void main( uint3 threadID : SV_DispatchThreadID )
+float3 lightCalc(uint index, float3 wsPos, float3 normal, float3 diffuseCLR, float3 specularCLR)
 {
-    // Transform coordinates into normalised coords
-    float2 texcoord = float2(
-        threadID.x / (WINDOW_WIDTH - 1.0f),
-        threadID.y / (WINDOW_HEIGHT - 1.0f)
-    );
-    // Early return
-    float4 ambientClr = in_clr.SampleLevel(sState, texcoord, 0);
-    if ( (ambientClr.r + ambientClr.g + ambientClr.b) == 0)
+    float3 finalColor = float3(0.0f, 0.0f, 0.0f);
+    float3 L = float3(0.0f, 0.0f, 0.0f);
+    float attenuation = 1.0f;
+    
+    
+    float3 lightPos       = lightBuffer[index].lightPosType.xyz;
+    float3 lightDirection = lightBuffer[index].lightDirRange.xyz;
+    float3 cameraPos      = CamPosLightCount.xyz;
+    
+    float lightRange      = lightBuffer[index].lightDirRange.w;
+    float specularPower   = lightBuffer[index].lightClrIntensity.w;
+    
+    float3 lightColor     = lightBuffer[index].lightClrIntensity.xyz;
+    
+    
+    
+    if (lightBuffer[index].lightPosType.w == 0) // Spotlight
     {
-        UAC[threadID.xy] = float4(0.0f, 0.0f, 0.0f, 1.0f);
-        return;
+        float2 spotlightAngels = lightBuffer[index].lightCosOuterInnerSMapCount.xy;
+        
+        L = lightPos - wsPos;
+        
+        float dist = length(L);
+        attenuation = max(0, 1.0f - (dist / lightRange));
+        
+        L /= dist;
+        
+        float3 L2 = lightDirection;
+        float rho = dot(-L, L2);
+        attenuation *= saturate(
+                    (rho - spotlightAngels.x) / (spotlightAngels.y - spotlightAngels.x)
+            );
+
     }
-    ambientClr.xyz *= in_clr.SampleLevel(sState, texcoord, 0).w;
-    
-    // Sampling
-    float4 wspos     = in_wspos.SampleLevel(sState, texcoord, 0);
-    float3 normal    = in_normal.SampleLevel(sState, texcoord, 0).xyz;
-    float  Shininess = in_normal.SampleLevel(sState, texcoord, 0).w;
-    float  Kd        = in_diffuseClr.SampleLevel(sState, texcoord, 0).w;
-    float  Ks        = in_specularClr.SampleLevel(sState, texcoord, 0).w;
-    
-    float3 diffuseClr  = Kd * in_diffuseClr.SampleLevel(sState, texcoord, 0).xyz;
-    float3 specularClr = Ks * in_specularClr.SampleLevel(sState, texcoord, 0).xyz;
-    
-    // Gather lighting
-    float3 lighting = float3(0.1f, 0.1f, 0.1f); // ambient
-    for (uint i = 0; i < CamPosLightCount.w; i++)
+    else if (lightBuffer[index].lightPosType.w == 1) // Directional Light
     {
-        bool enabledShadow = lightBuffer[i].lightCosOuterInnerSMapCount.z == 1.0f;
-        if (enabledShadow && HasShadow(i, wspos))
-        {
-            continue;
-        }
-        
-        // Sample light
-        float3 lightpos       = lightBuffer[i].lightPosType.xyz;
-        float3 lightclr       = lightBuffer[i].lightClrIntensity.xyz;
-        float  lightIntensity = lightBuffer[i].lightClrIntensity.w;
-        float  lightRange     = lightBuffer[i].lightDirRange.w;
-        
-        float  type = lightBuffer[i].lightPosType.w;
-        if ( type == 0 ) // Spot Light
-        {
-            float3 lightDir = (-1) * normalize(lightBuffer[i].lightDirRange.xyz);
-            float cosOuter = lightBuffer[i].lightCosOuterInnerSMapCount.x;
-            float cosInner = lightBuffer[i].lightCosOuterInnerSMapCount.y;
-            
-            lighting += SpotLight(lightpos, lightDir, wspos.xyz, CamPosLightCount.xyz, 
-                                    normal, diffuseClr, specularClr,
-                                    Shininess, lightIntensity, cosOuter, cosInner,
-                                    lightRange, lightclr);
-        }
-        else if (type == 1) // Directional Light
-        {
-            float3 lightDir = (-1) * normalize(lightBuffer[i].lightDirRange.xyz);
-            lighting += DirLight(lightDir, wspos.xyz, CamPosLightCount.xyz, normal,
-                                diffuseClr, Shininess, lightIntensity, lightclr);
-        }
-        else if (type == 2) // Point Light
-        {
-            float3 L = normalize(lightpos - wspos.xyz);
-            float3 N = normalize(normal);
-            float3 V = normalize(CamPosLightCount.xyz - wspos.xyz);
-            lighting += PhongLighting(lightclr, L, N, V, lightIntensity, Shininess);
-        }
-        
+        L = -lightDirection;
     }
-    float3 baseClr = ambientClr.xyz * diffuseClr * specularClr;
-    UAC[threadID.xy] = saturate(float4(
-        baseClr + lighting,
-        1.0f
-    ));
-    UAV[uint3(threadID.xy, 0)] = saturate(float4(
-        baseClr + lighting,
-        1.0f
-    ));
-    return;
+    else // Pointlight
+    {
+        L = lightPos - wsPos;
+        
+        float dist = length(L);
+        attenuation = max(0, 1.0f - (dist / lightRange));
+        
+        L /= dist;
+    }
+    
+    float nDotL = saturate( dot(normal, L) );
+    float3 diffuse = nDotL * lightColor * attenuation;
+    finalColor += diffuse * diffuseCLR;
+    
+    //Calculate specular
+    float3 V = cameraPos - wsPos;
+    float3 H = normalize(L + V);
+    
+    float specular = pow( saturate( dot(normal, H) ), specularPower ) * attenuation * nDotL;
+    finalColor += specular * specularCLR;
+    
+        
+    return finalColor;
 }

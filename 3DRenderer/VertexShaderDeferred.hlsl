@@ -33,7 +33,8 @@ VSOutput main(VSInput input)
     float4 pos = float4(input.position, 1.0f);
     
     output.outWPosition = mul(pos, worldMatrix);
-    output.outNormal = normalize(mul(float4(input.normal, 0.0f), normalWMatrix));
+    float4 normal = mul(float4(input.normal, 0.0f), normalWMatrix);
+    output.outNormal = normalize(normal);
     
 #if !LOD
     output.outPosition = mul(pos, wvpMatrix);

@@ -110,7 +110,7 @@ Camera::Camera(float right, float up, float forward, float x, float y, float z, 
 
     if (type == LIGHT_TYPE_DIRECTIONAL)
     {
-        UpdateProjectionMatrixOrthographic(35.0f, 35.0f, nearZ, farZ);
+        UpdateProjectionMatrixOrthographic(90.0f, 90.0f, nearZ, farZ);
     }
     else
     {
