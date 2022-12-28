@@ -111,13 +111,14 @@ bool Renderer::Build(wWindow window)
 		m_deferredSRVInput[i] = m_gbuffer[i].shaderResourceView;
 	}
 #if LOD
-	if (!BuildLOD(shaderBlob))						   { infoDump((unsigned)__LINE__); return false; }
+	if (!BuildLOD(shaderBlob))					{ infoDump((unsigned)__LINE__); return false; }
 #endif
 
 	//Lighting
-	if (!BuildLightBuffer())                   { infoDump((unsigned)__LINE__); return false; }
-	
-	if (!BuildShadowPass(shaderBlob, window))              { infoDump((unsigned)__LINE__); return false; }
+	if (!BuildLightBuffer())                    { infoDump((unsigned)__LINE__); return false; }
+	if (!BuildShadowPass(shaderBlob, window))   { infoDump((unsigned)__LINE__); return false; }
+
+
 
 
 	shaderBlob->Release();
@@ -559,6 +560,8 @@ bool Renderer::UpdateLODCBuffer(const Mesh& mesh, float tesFactor)
 }
 
 
+
+
 // Buffers
 bool Renderer::BuildVertexBuffer()
 {
@@ -926,7 +929,7 @@ bool Renderer::SetMeshMatrix(std::string id, const dx::XMMATRIX& matrix)
 	return false;
 }
 
-
+// Deferred Rendering
 void Renderer::DrawDeferred(std::vector< std::pair<std::string, dx::XMMATRIX> >& drawTargets, const wWindow& window)
 {
 	ClearBuffer();
@@ -981,17 +984,73 @@ void Renderer::DrawDeferred(std::vector< std::pair<std::string, dx::XMMATRIX> >&
 	m_immediateContext->CSSetSamplers(1, 1, m_shadowlightManager.GetShadowSamplerPP());
 	m_immediateContext->CSSetShaderResources((BUFFER_COUNT + 1), 1, m_shadowlightManager.GetSRVPP());
 
-	// shadow srv bind
-
-
-
-	// End added shadows
-
 	m_immediateContext->Dispatch(
 		static_cast<int>(window.GetWindowWidth() / 16), 
 		static_cast<int>(window.GetWindowHeight() / 16),
 		1);
 }
+void Renderer::RenderDrawTargets(const Assets& currentAsset, const UINT& stride, const UINT& offset, std::vector< std::pair<std::string, dx::XMMATRIX> >& drawTargets)
+{
+	ID3D11ShaderResourceView* textureSRV[4] = {};
+	Mesh mesh = {};
+	for (int i = 0; i < drawTargets.size(); i++)
+	{
+		if (currentAsset.GetMesh(drawTargets[i].first, mesh)) // TODO: Polish, redundent loop
+		{
+			//Per mesh updates
+			if (!UpdateVertexConstantBuffer(drawTargets[i].second)) { infoDump((unsigned)__LINE__); return; }
+			m_immediateContext->VSSetConstantBuffers(0, 1, m_vConstBuffer.GetAddressOf());
+
+			if (!UpdateVertexBuffer(mesh)) { infoDump((unsigned)__LINE__); return; }
+			if (!UpdateIndexBuffer(mesh)) { infoDump((unsigned)__LINE__); return; }
+			m_immediateContext->IASetVertexBuffers(0, 1, m_vertexBuffer.GetAddressOf(), &stride, &offset);
+			m_immediateContext->IASetIndexBuffer(m_indexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0);
+
+#if LOD
+			if (!UpdateLODCBuffer(mesh, 15.0f)) { infoDump((unsigned)__LINE__); return; }
+			m_immediateContext->HSSetConstantBuffers(0, 1, m_LODCBuffer.GetAddressOf());
+			m_immediateContext->DSSetConstantBuffers(0, 1, m_vConstBuffer.GetAddressOf());
+#endif
+
+			Texture tex = {};
+			for (auto& submesh : mesh.GetSubmeshMap())
+			{
+				//Per submesh updates
+				currentAsset.GetTexture(submesh.second.textureId, tex);
+				UpdateTextureBuffer(tex.Data());
+
+				// update sampler data
+
+				textureSRV[0] = tex.GetImageKa().empty() ? nullptr : m_loadedImages.at(tex.GetImageKa()).Get();
+				textureSRV[1] = tex.GetImageKd().empty() ? nullptr : m_loadedImages.at(tex.GetImageKd()).Get();
+				textureSRV[2] = tex.GetImageKs().empty() ? nullptr : m_loadedImages.at(tex.GetImageKs()).Get();
+
+				textureSRV[3] = m_CMManager.GetSRVP();
+
+
+				//Update CBuffer here, could keep track of value to optimize amount of map calls
+				UpdateDCEMCBuffer(submesh.second.textureId == std::string(DCEM_DEFAULT_TEX_NAME));
+				m_immediateContext->PSSetConstantBuffers(1, 1, m_CMCBuffer.GetAddressOf());
+
+
+
+
+				m_immediateContext->PSSetConstantBuffers(0, 1, m_materialBuffer.GetAddressOf());
+
+				m_immediateContext->PSSetShaderResources(0, sizeof(textureSRV) / sizeof(*textureSRV), textureSRV);
+
+				//Drawcall
+				m_immediateContext->DrawIndexed(
+					submesh.second.indiceCount,
+					submesh.second.indiceStartIndex,
+					submesh.second.verticeStartIndex
+				);
+			}
+		}
+	}
+}
+
+// Shadow Mapping
 void Renderer::ShadowPass(std::vector< std::pair<std::string, dx::XMMATRIX> >& drawTargets)
 {
 	UINT stride = sizeof(Vertex);
@@ -1062,11 +1121,265 @@ void Renderer::ShadowPass(std::vector< std::pair<std::string, dx::XMMATRIX> >& d
 	m_immediateContext->OMSetRenderTargets(0, nullptr, nullptr);
 }
 
-
-void Renderer::Render()
+// Dynamic Cubic Environment Mapping
+struct DCEMEnabled // 16 aligned
 {
-	m_swapChain->Present(1, 0);
+	float enabled_camPos[4];
 };
+bool Renderer::InitDCEM(std::string meshID, int height, int width)
+{
+	Mesh mesh = {};
+	for (auto& asset : m_assets)
+	{
+		if (asset.second.GetMesh(meshID, mesh))
+			break;
+	}
+
+	// Get the Mesh Position
+	dx::XMVECTOR scale = {};
+	dx::XMVECTOR rot   = {};
+	dx::XMVECTOR pos   = {};
+	dx::XMFLOAT3 meshPosition = {};
+	dx::XMMatrixDecompose(&scale, &rot, &pos, mesh.GetMatrix());
+	dx::XMStoreFloat3(&meshPosition, pos);
+
+	// Init the manager
+	if (!m_CMManager.Init(m_device.Get(), meshPosition.x, meshPosition.y, meshPosition.z, height, width)) { infoDump((unsigned)__LINE__); return false; }
+
+	// Init the CBuffer
+	D3D11_BUFFER_DESC cBufferDesc = {};
+	cBufferDesc.Usage               = D3D11_USAGE_DYNAMIC;
+	cBufferDesc.BindFlags           = D3D11_BIND_CONSTANT_BUFFER;
+	cBufferDesc.CPUAccessFlags      = D3D11_CPU_ACCESS_WRITE;
+	cBufferDesc.ByteWidth           = sizeof(DCEMEnabled);
+	cBufferDesc.StructureByteStride = 0;
+	cBufferDesc.MiscFlags           = 0;
+
+	DCEMEnabled data = {0};
+	D3D11_SUBRESOURCE_DATA subData = {};
+	subData.pSysMem          = &data;
+	subData.SysMemPitch      = 0;
+	subData.SysMemSlicePitch = 0;
+	m_hr = m_device->CreateBuffer(
+		&cBufferDesc,
+		&subData,
+		m_CMCBuffer.GetAddressOf()
+	);
+	if (FAILED(m_hr))
+		return false;
+
+
+	// Init the texture to be used
+	std::string texID = DCEM_DEFAULT_TEX_NAME;
+	Texture tex = {};
+
+	// Default texture as it will instead use the cube mapping
+	tex.SetImageKa(DEFAULT_MAP_LIGHT);
+	tex.SetImageKd(DEFAULT_MAP_LIGHT);
+	tex.SetImageKs(DEFAULT_MAP_LIGHT);
+
+	tex.SetKa({0.8f, 0.8f, 0.8f});
+	tex.SetKd({0.8f, 0.8f, 0.8f});
+	tex.SetKs({0.8f, 0.8f, 0.8f});
+	tex.SetNs(0.0f);
+	for (auto& asset : m_assets)
+	{
+		if (!asset.second.AddTexture(texID, tex))
+			return false;
+	}
+
+	// Init the Mesh to be used
+	if (!mesh.SetAllSubMmeshTexID(texID))
+		return false;
+
+	return true;
+}
+bool Renderer::UpdateDCEMCBuffer(int enabled)
+{
+	DCEMEnabled data = {};
+	data.enabled_camPos[0] = enabled;
+
+	dx::XMFLOAT3 camPos = m_dxCam.GetPositionFloat3();
+	data.enabled_camPos[1] = camPos.x;
+	data.enabled_camPos[2] = camPos.y;
+	data.enabled_camPos[3] = camPos.z;
+
+	D3D11_MAPPED_SUBRESOURCE mResource = {};
+	m_hr = m_immediateContext->Map(m_CMCBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mResource);
+	memcpy(
+		mResource.pData,
+		&data,
+		sizeof(data)
+	);
+	m_immediateContext->Unmap(m_CMCBuffer.Get(), 0);
+
+	return SUCCEEDED(m_hr);
+}
+void Renderer::GenerateDCEM(std::vector<std::pair<std::string, dx::XMMATRIX>>& drawTargets)
+{
+	// Ensure the texture cub is not set as a read resource
+	ID3D11ShaderResourceView* nullSRV = nullptr;
+	m_immediateContext->PSSetShaderResources(3, 1, &nullSRV);
+
+	float bgColor[4] = { 0.0f, 0.0f, 0.0f, 0 };
+	for (int i = 0; i < 6; ++i)
+	{
+		TEXTURE_CUBE_FACE_INDEX faceIndex = static_cast<TEXTURE_CUBE_FACE_INDEX>(i);
+		m_immediateContext->ClearUnorderedAccessViewFloat(m_CMManager.GetUAVP(faceIndex), &bgColor[0]);
+		RenderDCEMPass(drawTargets,
+			m_CMManager.GetFaceIndexCamera(faceIndex),
+			m_CMManager.GetUAVP(faceIndex),
+			m_CMManager.GetDSVP(),
+			m_CMManager.GetViewport()
+		);
+	}
+
+	// Ensure the texturecube is not bound as output when rendering the main loop
+	ID3D11UnorderedAccessView* nullUAV = nullptr;
+	m_immediateContext->CSSetUnorderedAccessViews(1, 1, &nullUAV, 0);
+}
+void Renderer::RenderDCEMPass(std::vector< std::pair<std::string, dx::XMMATRIX> >& drawTargets, const Camera& cam, ID3D11UnorderedAccessView* uav, ID3D11DepthStencilView* dsv, D3D11_VIEWPORT viewport)
+{
+	ClearBuffer();
+	UINT stride = sizeof(Vertex);
+	UINT offset = 0;
+
+
+	//Once per present
+#if LOD
+	m_immediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_3_CONTROL_POINT_PATCHLIST);
+#else
+	m_immediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+#endif
+	m_immediateContext->RSSetViewports(1, &viewport);
+	m_immediateContext->PSSetSamplers(0, 1, m_samplerState.GetAddressOf());
+
+	// Clear input textures
+	ID3D11ShaderResourceView* nullSRVs[BUFFER_COUNT + 2] = { nullptr };
+	m_immediateContext->CSSetShaderResources(0, BUFFER_COUNT + 2, nullSRVs);
+
+	// OM
+	m_immediateContext->OMSetRenderTargets(BUFFER_COUNT, m_deferredRTVOutput[0].GetAddressOf(), m_dsv.Get());
+
+	for (auto& asset : m_assets)
+	{
+		// Read asset flag for used data
+		unsigned char data = asset.first;
+		int shaderSet = (int)(data & 0b00001111);
+		int inputlayout = (int)((data & 0b11110000) >> 4);
+		// Shaders
+		m_immediateContext->VSSetShader(m_shaders[shaderSet].vertexShader.Get(), nullptr, 0);
+		m_immediateContext->HSSetShader(m_shaders[shaderSet].hullShader.Get(), nullptr, 0);
+		m_immediateContext->DSSetShader(m_shaders[shaderSet].domainShader.Get(), nullptr, 0);
+		m_immediateContext->GSSetShader(m_shaders[shaderSet].geometryShader.Get(), nullptr, 0);
+		m_immediateContext->PSSetShader(m_shaders[shaderSet].pixelShader.Get(), nullptr, 0);
+		// IA
+		m_immediateContext->IASetInputLayout(m_inputLayout[inputlayout].Get());
+
+		//Update for the DCEM Cbuffer
+		UpdateDCEMCBuffer(0);
+		m_immediateContext->PSSetConstantBuffers(1, 1, m_CMCBuffer.GetAddressOf());
+
+
+		ID3D11ShaderResourceView* textureSRV[4] = {};
+		Mesh mesh = {};
+		for (int i = 0; i < drawTargets.size(); i++)
+		{
+			if (asset.second.GetMesh(drawTargets[i].first, mesh)) // TODO: Polish, redundent loop
+			{
+				bool noDraw = false;
+				for (auto& submesh : mesh.GetSubmeshMap()) 
+				{
+					if (submesh.second.textureId == std::string(DCEM_DEFAULT_TEX_NAME))
+					{
+						noDraw = true;
+					}
+				}
+				if (noDraw)
+				{
+					continue;
+				}
+
+
+
+				//Per mesh updates
+				if (!UpdateVertexConstantBuffer(drawTargets[i].second, cam)) { infoDump((unsigned)__LINE__); return; }
+				m_immediateContext->VSSetConstantBuffers(0, 1, m_vConstBuffer.GetAddressOf());
+
+
+				// Mesh Data
+				if (!UpdateVertexBuffer(mesh)) { infoDump((unsigned)__LINE__); return; }
+				if (!UpdateIndexBuffer(mesh)) { infoDump((unsigned)__LINE__); return; }
+				m_immediateContext->IASetVertexBuffers(0, 1, m_vertexBuffer.GetAddressOf(), &stride, &offset);
+				m_immediateContext->IASetIndexBuffer(m_indexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0);
+
+
+#if LOD
+				if (!UpdateLODCBuffer(mesh, 15.0f)) { infoDump((unsigned)__LINE__); return; }
+				m_immediateContext->HSSetConstantBuffers(0, 1, m_LODCBuffer.GetAddressOf());
+				m_immediateContext->DSSetConstantBuffers(0, 1, m_vConstBuffer.GetAddressOf());
+#endif
+
+				Texture tex = {};
+				for (auto& submesh : mesh.GetSubmeshMap())
+				{
+					//Per submesh updates
+					asset.second.GetTexture(submesh.second.textureId, tex);
+					UpdateTextureBuffer(tex.Data());
+
+					// update sampler data
+
+					textureSRV[0] = tex.GetImageKa().empty() ? nullptr : m_loadedImages.at(tex.GetImageKa()).Get();
+					textureSRV[1] = tex.GetImageKd().empty() ? nullptr : m_loadedImages.at(tex.GetImageKd()).Get();
+					textureSRV[2] = tex.GetImageKs().empty() ? nullptr : m_loadedImages.at(tex.GetImageKs()).Get();
+
+					textureSRV[3] = nullptr;
+
+
+
+
+					m_immediateContext->PSSetConstantBuffers(0, 1, m_materialBuffer.GetAddressOf());
+
+					m_immediateContext->PSSetShaderResources(0, sizeof(textureSRV) / sizeof(*textureSRV), textureSRV);
+
+					//Drawcall
+					m_immediateContext->DrawIndexed(
+						submesh.second.indiceCount,
+						submesh.second.indiceStartIndex,
+						submesh.second.verticeStartIndex
+					);
+				}
+			}
+		}
+	}
+	// Unbind output textures
+	m_immediateContext->OMSetRenderTargets(0, nullptr, nullptr);
+
+	// CS
+	m_immediateContext->CSSetShader(m_shaders[0].computeShader.Get(), nullptr, 0);
+	m_immediateContext->CSSetSamplers(0, 1, m_samplerState.GetAddressOf());
+	m_immediateContext->CSSetShaderResources(0, (BUFFER_COUNT + 1), m_deferredSRVInput[0].GetAddressOf());
+	m_immediateContext->CSSetConstantBuffers(0, 1, m_lightCount.GetAddressOf());
+
+	ID3D11ShaderResourceView* nullSRV = nullptr;
+	ID3D11UnorderedAccessView* nullUAV = nullptr;
+	m_immediateContext->PSSetShaderResources(3, 1, &nullSRV);
+	m_immediateContext->CSSetUnorderedAccessViews(0, 1, &nullUAV, 0);
+	m_immediateContext->CSSetUnorderedAccessViews(1, 1, &uav, 0);
+
+	//Added shadows
+	// shadow sampler bind
+	m_immediateContext->CSSetSamplers(1, 1, m_shadowlightManager.GetShadowSamplerPP());
+	m_immediateContext->CSSetShaderResources((BUFFER_COUNT + 1), 1, m_shadowlightManager.GetSRVPP());
+
+	
+	m_immediateContext->Dispatch(
+		static_cast<int>(viewport.Width / 16),
+		static_cast<int>(viewport.Height / 16),
+		1);
+}
+
+
 void Renderer::ClearBuffer()
 {
 	float bgColor[4] = { 0.0f, 0.0f, 0.0f, 0 };
@@ -1079,58 +1392,6 @@ void Renderer::ClearBuffer()
 		m_immediateContext->ClearRenderTargetView(m_gbuffer[i].renderTargetView.Get(), bgColor);
 	}
 }
-void Renderer::RenderDrawTargets(const Assets& currentAsset,
-	const UINT& stride, const UINT& offset,
-	std::vector< std::pair<std::string, dx::XMMATRIX> >& drawTargets)
-{
-	ID3D11ShaderResourceView* textureSRV[3] = {};
-	Mesh mesh = {};
-	for (int i = 0; i < drawTargets.size(); i++)
-	{
-		if (currentAsset.GetMesh(drawTargets[i].first, mesh)) // TODO: Polish, redundent loop
-		{
-			//Per mesh updates
-			if (!UpdateVertexConstantBuffer(drawTargets[i].second)) { infoDump((unsigned)__LINE__); return; }
-			m_immediateContext->VSSetConstantBuffers(0, 1, m_vConstBuffer.GetAddressOf());
-
-			if (!UpdateVertexBuffer(mesh)) { infoDump((unsigned)__LINE__); return; }
-			if (!UpdateIndexBuffer(mesh)) { infoDump((unsigned)__LINE__); return; }
-			m_immediateContext->IASetVertexBuffers(0, 1, m_vertexBuffer.GetAddressOf(), &stride, &offset);
-			m_immediateContext->IASetIndexBuffer(m_indexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0);
-
-#if LOD
-			if (!UpdateLODCBuffer(mesh, 32.0f)) { infoDump((unsigned)__LINE__); return; }
-			m_immediateContext->HSSetConstantBuffers(0, 1, m_LODCBuffer.GetAddressOf());
-			m_immediateContext->DSSetConstantBuffers(0, 1, m_vConstBuffer.GetAddressOf());
-#endif
-
-			Texture tex = {};
-			for (auto& submesh : mesh.GetSubmeshMap())
-			{
-				//Per submesh updates
-				currentAsset.GetTexture(submesh.second.textureId, tex);
-				UpdateTextureBuffer(tex.Data());
-
-				// update sampler data
-				textureSRV[0] = m_loadedImages.at(tex.GetImageKa()).Get();
-				textureSRV[1] = m_loadedImages.at(tex.GetImageKd()).Get();
-				textureSRV[2] = m_loadedImages.at(tex.GetImageKs()).Get();
-
-
-				m_immediateContext->PSSetConstantBuffers(0, 1, m_materialBuffer.GetAddressOf());
-				m_immediateContext->PSSetShaderResources(0, 3, textureSRV);
-
-				//Drawcall
-				m_immediateContext->DrawIndexed(
-					submesh.second.indiceCount,
-					submesh.second.indiceStartIndex,
-					submesh.second.verticeStartIndex
-				);
-			}
-		}
-	}
-}
-
 bool Renderer::UpdateImageMap()
 {
 	for (auto& asset : m_assets)
@@ -1151,17 +1412,17 @@ bool Renderer::UpdateImageMap()
 				case 4: format = DXGI_FORMAT_R8G8B8A8_UNORM; break;
 			}
 			D3D11_TEXTURE2D_DESC textureDesc = {};
-			textureDesc.Height = img.second.height;
-			textureDesc.Width = img.second.width;
-			textureDesc.Format = format;
-			textureDesc.Usage = D3D11_USAGE_DEFAULT;
-			textureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-			textureDesc.MipLevels = 1;
-			textureDesc.ArraySize = 1;
-			textureDesc.SampleDesc.Count = 1;
+			textureDesc.Height             = img.second.height;
+			textureDesc.Width              = img.second.width;
+			textureDesc.Format             = format;
+			textureDesc.Usage              = D3D11_USAGE_DEFAULT;
+			textureDesc.BindFlags          = D3D11_BIND_SHADER_RESOURCE;
+			textureDesc.MipLevels          = 1;
+			textureDesc.ArraySize          = 1;
+			textureDesc.SampleDesc.Count   = 1;
 			textureDesc.SampleDesc.Quality = 0;
-			textureDesc.CPUAccessFlags = 0;
-			textureDesc.MiscFlags = 0;
+			textureDesc.CPUAccessFlags     = 0;
+			textureDesc.MiscFlags          = 0;
 
 			D3D11_SUBRESOURCE_DATA subData = {};
 			subData.pSysMem = img.second.img;
@@ -1179,9 +1440,9 @@ bool Renderer::UpdateImageMap()
 
 			// Create the SRV for the image
 			D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-			srvDesc.Format = textureDesc.Format;
-			srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-			srvDesc.Texture2D.MipLevels = 1;
+			srvDesc.Format                    = textureDesc.Format;
+			srvDesc.ViewDimension             = D3D11_SRV_DIMENSION_TEXTURE2D;
+			srvDesc.Texture2D.MipLevels       = 1;
 			srvDesc.Texture2D.MostDetailedMip = 0;
 
 			m_hr = m_device->CreateShaderResourceView(
@@ -1197,3 +1458,15 @@ bool Renderer::UpdateImageMap()
 	}
 	return true;
 }
+
+
+
+void Renderer::Render(std::vector< std::pair<std::string, dx::XMMATRIX> >& drawTargets, const wWindow& window)
+{
+	UpdateLighting();
+	ShadowPass(drawTargets);
+	GenerateDCEM(drawTargets);
+	DrawDeferred(drawTargets, window);
+
+	m_swapChain->Present(1, 0);
+};

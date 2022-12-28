@@ -23,6 +23,15 @@ Camera::Camera(float right, float up, float forward, float fovDegrees, float asp
 	UpdateProjectionMatrix(fovDegrees, aspectRatio, nearZ, farZ);
 	UpdateViewMatrix();
 }
+Camera::Camera(float right, float up, float forward, float eulerPitch, float eulerYaw, float eulerRoll, float fovDegrees, float aspectRatio, float nearZ, float farZ)
+{
+    m_position = { right, up, forward };
+    m_rotation = { eulerPitch, eulerYaw, eulerRoll };
+
+
+    UpdateProjectionMatrix(fovDegrees, aspectRatio, nearZ, farZ);
+    UpdateViewMatrixRoll();
+}
 Camera::Camera(float right, float up, float forward, float x, float y, float z, float fovDegrees, float aspectRatio, float nearZ, float farZ, const lightType type)
 {
 	m_position = { right, up, forward };
@@ -144,6 +153,18 @@ void Camera::UpdateViewMatrix()
 	const dx::XMVECTOR pos = dx::XMLoadFloat3(&m_position);
 	const dx::XMVECTOR target = dx::XMVectorAdd(pos, lookatVector);
 	m_viewMatrix = dx::XMMatrixLookAtLH(pos, target, DEFAULT_UP);
+}
+void Camera::UpdateViewMatrixRoll()
+{
+    const dx::XMVECTOR lookatVector =
+        dx::XMVector3Transform(
+            DEFAULT_FWD,
+            dx::XMMatrixRotationRollPitchYaw(m_rotation.x, m_rotation.y, m_rotation.z)
+        );
+
+    const dx::XMVECTOR pos = dx::XMLoadFloat3(&m_position);
+    const dx::XMVECTOR target = dx::XMVectorAdd(pos, lookatVector);
+    m_viewMatrix = dx::XMMatrixLookAtLH(pos, target, {0.0f, -1.0f, 0.0f});
 }
 void Camera::UpdateProjectionMatrix(float fovDegrees, float aspectRatio, float nearZ, float farZ)
 {

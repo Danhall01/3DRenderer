@@ -22,7 +22,7 @@ public:
 	bool ParseFromObjFile(std::string path, std::string filename, bool severity);
 	bool ParseFromMtlFile(std::string path, std::string filename, bool severity);
 
-	
+	// Getters
 	bool GetMesh(std::string meshId, Mesh& mesh) const;
 	const std::unordered_map<std::string, Mesh>& GetMeshMap() const;
 
@@ -32,6 +32,10 @@ public:
 
 	bool GetImage(std::string imgId, Image& img) const;
 	const std::unordered_map<std::string, Image>& GetImageMap() const;
+
+
+	// Adders
+	bool AddTexture(std::string texID, const Texture& tex);
 
 	// Clears the image map preemptively: OBS! Unless a copy is saved, image allocations will be lost
 	void Clear();

@@ -4,6 +4,7 @@
 #include "Camera.h"
 #include "Assets.h"
 #include "ShadowLight.h"
+#include "DCEMAsset.h"
 // The API
 #include <d3d11.h>
 // Other libraries
@@ -49,12 +50,18 @@ public:
 
 	//Renderer manager
 	bool Build(wWindow window);
+	bool InitDCEM(std::string meshID, int height, int width);
+
+
+	void Render(std::vector< std::pair<std::string, dx::XMMATRIX> >& drawTargets, const wWindow& window);
+private:
+	// Render Stages
+	bool UpdateLighting();
 	void DrawDeferred(std::vector< std::pair<std::string, dx::XMMATRIX> >& drawTargets, const wWindow& window);
 	void ShadowPass(std::vector< std::pair<std::string, dx::XMMATRIX> >& drawTargets);
-	
-	bool UpdateLighting();
-	void Render();
-private:
+	void GenerateDCEM(std::vector< std::pair<std::string, dx::XMMATRIX> >& drawTargets);
+
+
 	// Renderer Helper Functions
 	void ClearBuffer();
 	void RenderDrawTargets(const Assets& currentAsset,
@@ -105,6 +112,9 @@ private:
 	// LOD Helper Functions
 	bool UpdateLODCBuffer(const Mesh& mesh, float tesFactor);
 
+	// DCEM Helper Functions
+	bool UpdateDCEMCBuffer(int enabled);
+	void RenderDCEMPass(std::vector< std::pair<std::string, dx::XMMATRIX> >& drawTargets, const Camera& cam, ID3D11UnorderedAccessView* rtv, ID3D11DepthStencilView* dsv, D3D11_VIEWPORT viewport);
 
 	// Image Helper functions
 	bool UpdateImageMap();
@@ -168,4 +178,9 @@ private: //D3D11 VARIABLES
 	// 1. Do not swap between different constant buffers
 	// 2. Constant buffer that gets updated should only affect one step in the pipeline
 	// 3. Do not read from the Map[MAP_WRITE_DISCARD] data
+
+
+	// Mirror
+	DCEMAsset											m_CMManager;
+	WRL::ComPtr<ID3D11Buffer>							m_CMCBuffer;
 };

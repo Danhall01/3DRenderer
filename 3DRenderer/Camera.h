@@ -11,6 +11,10 @@ public:
 	Camera(float right, float up, float forward, float fovDegrees, float aspectRatio, float nearZ, float farZ);
 	Camera(
 		float right, float up, float forward,
+		float eulerPitch, float eulerYaw, float eulerRoll,
+		float fovDegrees, float aspectRatio, float nearZ, float farZ);
+	Camera(
+		float right, float up, float forward,
 		float x, float y, float z,
 		float fovDegrees, float aspectRatio, float nearZ, float farZ,
 		const lightType type);
@@ -28,6 +32,7 @@ public:
 	void UpdateProjectionMatrix(float fovDegrees, float aspectRatio, float nearZ, float farZ);
 	void UpdateProjectionMatrixOrthographic(float viewWidth, float viewHeight, float nearZ, float farZ);
 	void UpdateViewMatrix();
+	void UpdateViewMatrixRoll();
 
 	void AddPosition(float right, float up, float forward);
 	void AddRotation(float pitch, float yaw, float roll);

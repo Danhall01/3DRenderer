@@ -10,8 +10,8 @@
 //Help on maps & switch strings by article https://www.codeguru.com/cplusplus/switch-on-strings-in-c/
 //By CodeGuru Staff
 
-#define DEFAULT_MAP_KA "DEFAULTCLR"
-#define DEFAULT_MAP_LIGHT "LIGHT"
+#include "Settings.h"
+
 
 //Bind strings to enum to allow for lookup tables
 enum CMDVal
@@ -152,6 +152,17 @@ bool Assets::GetImage(std::string imgId, Image& img) const
 const std::unordered_map<std::string, Image>& Assets::GetImageMap() const
 {
 	return m_images;
+}
+
+bool Assets::AddTexture(std::string texID, const Texture& tex)
+{
+	if (m_textureMap.count(texID) > 0)
+	{
+		return false;
+	}
+
+	m_textureMap.emplace(texID, tex);
+	return true;
 }
 
 void Assets::Clear()

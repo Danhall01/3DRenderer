@@ -57,6 +57,9 @@
     <ClCompile Include="ShadowLight.cpp">
       <Filter>Source Files\Asset</Filter>
     </ClCompile>
+    <ClCompile Include="DCEMAsset.cpp">
+      <Filter>Source Files\Asset</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Text Include="README.md" />
@@ -65,9 +68,6 @@
     </Text>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="wWindow.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Mesh.h">
       <Filter>Header Files\Asset</Filter>
     </ClInclude>
@@ -80,9 +80,6 @@
     <ClInclude Include="Assets.h">
       <Filter>Header Files\Asset</Filter>
     </ClInclude>
-    <ClInclude Include="Texture.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Structures.h">
       <Filter>Resource Files\Misc</Filter>
     </ClInclude>
@@ -94,6 +91,15 @@
     </ClInclude>
     <ClInclude Include="ShadowLight.h">
       <Filter>Header Files\Asset</Filter>
+    </ClInclude>
+    <ClInclude Include="DCEMAsset.h">
+      <Filter>Header Files\Asset</Filter>
+    </ClInclude>
+    <ClInclude Include="Texture.h">
+      <Filter>Header Files\Asset</Filter>
+    </ClInclude>
+    <ClInclude Include="wWindow.h">
+      <Filter>Header Files\Graphics</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

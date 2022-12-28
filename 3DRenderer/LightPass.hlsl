@@ -9,6 +9,7 @@ sampler sState : register(s0);
 
 // Output
 RWTexture2D<float4> UAC : register(u0);
+RWTexture2DArray<float4> UAV : register(u1);
 
 // Input
 Texture2D<float4> in_clr         : register(t0); // mapKa Ka
@@ -222,6 +223,10 @@ void main( uint3 threadID : SV_DispatchThreadID )
     }
     float3 baseClr = ambientClr.xyz * diffuseClr * specularClr;
     UAC[threadID.xy] = saturate(float4(
+        baseClr + lighting,
+        1.0f
+    ));
+    UAV[uint3(threadID.xy, 0)] = saturate(float4(
         baseClr + lighting,
         1.0f
     ));

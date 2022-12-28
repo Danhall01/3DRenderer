@@ -12,7 +12,7 @@ class Mesh
 private:
 public:
 	Mesh();
-	Mesh(std::string id);
+	Mesh(std::string id); // Unused
 	~Mesh();
 
 	bool Empty() const;
@@ -20,7 +20,8 @@ public:
 
 	//Setters
 	bool AddSubmesh(const std::string& id, Submesh& submesh);
-	
+	bool SetSubmeshTexID(std::string submeshID, std::string ID);
+	bool SetAllSubMmeshTexID(std::string ID);
 
 	//Getters
 	bool GetSubmesh(const std::string& submeshID, Submesh& submesh) const;

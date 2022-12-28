@@ -42,6 +42,22 @@ bool Mesh::AddSubmesh(const std::string& id, Submesh& submesh)
 {
 	return m_submeshMap.try_emplace(id, submesh).second;
 }
+
+bool Mesh::SetSubmeshTexID(std::string submeshID, std::string ID)
+{
+	m_submeshMap.at(submeshID).textureId = ID;
+	return true;
+}
+bool Mesh::SetAllSubMmeshTexID(std::string ID)
+{
+	for (auto& submesh : m_submeshMap)
+	{
+		submesh.second.textureId = ID;
+	}
+
+	return true;
+}
+
 bool Mesh::GetSubmesh(const std::string& submeshID, Submesh& submesh) const
 {
 	if (m_submeshMap.count(submeshID) > 0)
