@@ -1198,15 +1198,6 @@ bool Renderer::InitDCEM(std::string meshID, int height, int width)
 
 	return true;
 }
-void Renderer::InitFrustumCulling(std::vector< std::pair<std::string, dx::XMMATRIX> >& drawTargets, float maxHeight, float minHeight, float multiplier)
-{
-	//Update the drawTargets with frustum calling
-	for (auto& asset : m_assets)
-	{
-		asset.second.BuildFrustumCulling(drawTargets, maxHeight, minHeight, multiplier);
-	}
-	return;
-}
 bool Renderer::UpdateDCEMCBuffer(int enabled)
 {
 	DCEMEnabled data = {};
@@ -1390,6 +1381,17 @@ void Renderer::RenderDCEMPass(std::vector< std::pair<std::string, dx::XMMATRIX> 
 		static_cast<int>(viewport.Width / 16),
 		static_cast<int>(viewport.Height / 16),
 		1);
+}
+
+// Frustum culling
+void Renderer::InitFrustumCulling(std::vector< std::pair<std::string, dx::XMMATRIX> >& drawTargets, float maxHeight, float minHeight, float multiplier)
+{
+	//Update the drawTargets with frustum calling
+	for (auto& asset : m_assets)
+	{
+		asset.second.BuildFrustumCulling(drawTargets, maxHeight, minHeight, multiplier);
+	}
+	return;
 }
 
 
