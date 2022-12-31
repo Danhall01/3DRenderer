@@ -112,6 +112,7 @@ inline void quadTree<T>::FreeNode(Node* node)
 	{
 		FreeNode(node->children[i]);
 	}
+	free(node);
 }
 
 
