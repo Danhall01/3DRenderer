@@ -47,6 +47,10 @@ void Renderer::RotateDXCam(float pitch, float yaw, float roll)
 {
 	m_dxCam.AddRotation(pitch, yaw, roll);
 }
+void Renderer::RotateDXCam(float pitch, float yaw, float roll, float deltaTime)
+{
+	m_dxCam.AddRotation(pitch, yaw, roll, deltaTime);
+}
 void Renderer::UpdateDXCam()
 {
 	// Aspect ratio change (would require major rebuild)

@@ -215,5 +215,17 @@ void Camera::AddRotation(float pitch, float yaw, float roll)
 	m_rotation.y += yaw * ROTATION_SPEED;
 
 	// Roll
+}
+void Camera::AddRotation(float pitch, float yaw, float roll, float deltaTime)
+{
+    //Clamp is a c++17 function from <algoritm>
+    const float nonPerpendicularConst = 0.9995f;
+    m_rotation.x = std::clamp(
+        m_rotation.x + pitch * deltaTime, // pitch + add_pitch * speedlimit
+        nonPerpendicularConst * -dx::XM_PI / 2.0f, // min
+        nonPerpendicularConst * dx::XM_PI / 2.0f // max
+    );
 
+    // Yaw
+    m_rotation.y += yaw * deltaTime;
 }

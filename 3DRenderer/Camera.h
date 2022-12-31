@@ -36,6 +36,7 @@ public:
 
 	void AddPosition(float right, float up, float forward);
 	void AddRotation(float pitch, float yaw, float roll);
+	void AddRotation(float pitch, float yaw, float roll, float deltaTime);
 
 private:
 

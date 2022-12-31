@@ -11,7 +11,6 @@
 //Clock
 #include <chrono>
 using namespace std::chrono_literals;
-constexpr std::chrono::nanoseconds timeLock(168ms);
 
 /// =============== Could be a class for input ===================
 //Gloabal variables for keybinds
@@ -114,7 +113,7 @@ void keyEvents(MSG& msg)
 /// ==============================================================
 
 // Funny
-#define RANDOM_CUBES 0
+#define RANDOM_CUBES 1
 
 int APIENTRY wWinMain(
 	_In_     HINSTANCE   hInstance,
@@ -176,7 +175,20 @@ int APIENTRY wWinMain(
 	drawable.push_back({ capsule, matrixCapsule });
 
 
-
+#if RANDOM_CUBES
+	// Spawn a random cube
+	do 
+	{
+		dx::XMMATRIX spawnableMatrix = dx::XMMatrixIdentity();
+		spawnableMatrix *= 
+			dx::XMMatrixScaling(2.0f, 2.0f, 2.0f) *
+			dx::XMMatrixTranslation(
+				static_cast<float>(rand() % 300 -150),
+				static_cast<float>(rand() % 300 -150),
+				static_cast<float>(rand() % 300 -150));
+		drawable.push_back({ cube, spawnableMatrix });
+	} while ((drawable.size() < 100));
+#endif
 
 	// ########## Dynamic Cubic Environment Mapping ##########
 
@@ -184,7 +196,7 @@ int APIENTRY wWinMain(
 	dx::XMMATRIX DCEMMatrix = dx::XMMatrixIdentity();
 
 
-	renderer.InitDCEM(DCEMShowcase, 800, 800);
+	renderer.InitDCEM(DCEMShowcase, 400, 400);
 	drawable.push_back({ DCEMShowcase, DCEMMatrix });
 	
 	// ########## Lighting ##########
@@ -226,22 +238,11 @@ int APIENTRY wWinMain(
 		dx::XMMatrixTranslation(lightTest3.Position_Type[0], lightTest3.Position_Type[1] + 1, lightTest3.Position_Type[2]);
 	drawable.push_back({ cube, sunMatrix3 });
 
-	//########### Lighting END ################
 
-#if RANDOM_CUBES
-// Spawn a random cube
-	if (drawable.size() < 100)
-	{
-		dx::XMMATRIX spawnableMatrix = dx::XMMatrixIdentity();
-		spawnableMatrix *= dx::XMMatrixTranslation(
-			static_cast<float>(rand() % 300),
-			static_cast<float>(rand() % 300),
-			static_cast<float>(rand() % 300));
-		drawable.push_back({ cube, spawnableMatrix });
-	}
-#endif
+	// ######### Frustum Culling ############
+
 #if FRUSTUM_CULLING
-	renderer.InitFrustumCulling(drawable, 20.0f, -20.0f, 300);
+	renderer.InitFrustumCulling(drawable, 155.0f, -155.0f, 300);
 #endif
 	// Moving meshes (ignored by frustum culling)
 	std::vector < std::pair<std::string, DirectX::XMMATRIX>> movable = {};
@@ -252,62 +253,57 @@ int APIENTRY wWinMain(
 	//########### SCENE END ################
 
 
-	float iter = 0;
 	using clock = std::chrono::high_resolution_clock;
-	std::chrono::nanoseconds elapsedTime(0ns);
+	typedef std::chrono::duration<float> deltaTime;
+	float moveDistance = 0.0f;
+
 	auto startTime = clock::now();
+	auto endTime = clock::now();
 	while (hWindow.EventManager() != WM_QUIT)
 	{
 		renderer.UpdateDXCam();
-
-		auto DTime = clock::now() - startTime;
+		deltaTime frameTime = endTime - startTime;
 		startTime = clock::now();
-		elapsedTime += std::chrono::duration_cast<std::chrono::nanoseconds>(DTime);
 
-		//Time based system
-		while (elapsedTime >= timeLock)
+		//Update game logic
+		if (right || left || up || down || forward || backward)
 		{
-			//Update game logic
-			if (right || left || up || down || forward || backward)
-			{
-				renderer.AddDXCamPos( //Move the camera
-					(float)right   - left,
-					(float)up      - down,
-					(float)forward - backward);
-			}
-			if (hWindow.Data() == GetForegroundWindow())
-			{
-				hWindow.GetCursorPosition(cursorPos.data(), static_cast<UINT>(cursorPos.size()));
-				if (cursorPos[0] != 0 && cursorPos[0] < hWindow.GetWindowWidth() / 2 ||
-					cursorPos[1] != 0 && cursorPos[1] < hWindow.GetWindowHeight() /2 )
-				{
-					renderer.RotateDXCam(
-						cursorPos[1],
-						cursorPos[0],
-						0
-					);
-				}
-			}
-			movable[0].second = dx::XMMatrixRotationY(dx::XM_PI / 180 * 90)
-				* dx::XMMatrixTranslation(-15, 0, 0)
-				* dx::XMMatrixRotationY(dx::XM_PI / 180 * 0.5f * iter);
-			iter++;
-			// ==========================
-
-
-
-			// #################### Render loop ##########################
-
-
-			renderer.Render(drawable, movable, hWindow);
-
-			
-			// #################### Render loop ##########################
-
-			
-			//Catch up the loop
-			elapsedTime -= timeLock;
+			renderer.AddDXCamPos( //Move the camera
+				(float)right   - left,
+				(float)up      - down,
+				(float)forward - backward);
 		}
+		if (hWindow.Data() == GetForegroundWindow())
+		{
+			hWindow.GetCursorPosition(cursorPos.data(), static_cast<UINT>(cursorPos.size()));
+			if (cursorPos[0] != 0 && cursorPos[0] < hWindow.GetWindowWidth() / 2 ||
+				cursorPos[1] != 0 && cursorPos[1] < hWindow.GetWindowHeight() /2 )
+			{
+				renderer.RotateDXCam(
+					cursorPos[1],
+					cursorPos[0],
+					0,
+					0.004f
+				);
+			}
+		}
+		moveDistance += ( ((dx::XM_PI / 180) * 12.5f) * frameTime.count() );
+		movable[0].second = dx::XMMatrixRotationY(dx::XM_PI / 180 * 90)
+			* dx::XMMatrixTranslation(-15, 0, 0)
+			* dx::XMMatrixRotationY(moveDistance);
+		// ==========================
+		
+
+
+		// #################### Render loop ##########################
+
+
+		renderer.Render(drawable, movable, hWindow);
+
+			
+		// #################### Render loop ##########################
+		endTime = clock::now();
+			
 	}
 	return 0;
 }

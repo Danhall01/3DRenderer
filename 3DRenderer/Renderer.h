@@ -35,6 +35,7 @@ public:
 	const Camera& GetDXCamera() const;
 	void AddDXCamPos(float right, float up, float forward);
 	void RotateDXCam(float pitch, float yaw, float roll);
+	void RotateDXCam(float pitch, float yaw, float roll, float deltaTime);
 	void UpdateDXCam();
 
 	void AddLight(const Light& light);
