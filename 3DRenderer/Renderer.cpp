@@ -995,7 +995,7 @@ void Renderer::RenderDrawTargets(const Assets& currentAsset, const UINT& stride,
 	Mesh mesh = {};
 	for (int i = 0; i < drawTargets.size(); i++)
 	{
-		if (currentAsset.GetMesh(drawTargets[i].first, mesh)) // TODO: Polish, redundent loop
+		if (currentAsset.GetMesh(drawTargets[i].first, mesh))
 		{
 			//Per mesh updates
 			if (!UpdateVertexConstantBuffer(drawTargets[i].second)) { infoDump((unsigned)__LINE__); return; }
@@ -1194,10 +1194,19 @@ bool Renderer::InitDCEM(std::string meshID, int height, int width)
 
 	return true;
 }
+void Renderer::InitFrustumCulling(std::vector< std::pair<std::string, dx::XMMATRIX> >& drawTargets, float maxHeight, float minHeight, float multiplier)
+{
+	//Update the drawTargets with frustum calling
+	for (auto& asset : m_assets)
+	{
+		asset.second.BuildFrustumCulling(drawTargets, maxHeight, minHeight, multiplier);
+	}
+	return;
+}
 bool Renderer::UpdateDCEMCBuffer(int enabled)
 {
 	DCEMEnabled data = {};
-	data.enabled_camPos[0] = enabled;
+	data.enabled_camPos[0] = static_cast<float>(enabled);
 
 	dx::XMFLOAT3 camPos = m_dxCam.GetPositionFloat3();
 	data.enabled_camPos[1] = camPos.x;
@@ -1461,12 +1470,86 @@ bool Renderer::UpdateImageMap()
 
 
 
-void Renderer::Render(std::vector< std::pair<std::string, dx::XMMATRIX> >& drawTargets, const wWindow& window)
+void Renderer::Render(const std::vector< std::pair<std::string, dx::XMMATRIX> >& drawTargets, const std::vector< std::pair<std::string, dx::XMMATRIX> >& movingTargets, const wWindow& window)
 {
+	// Normal Rendering presudure
 	UpdateLighting();
-	ShadowPass(drawTargets);
-	GenerateDCEM(drawTargets);
-	DrawDeferred(drawTargets, window);
+	
+#if FRUSTUM_CULLING
+	// Update the self draw vector
+	dx::BoundingFrustum frustum;
+	dx::XMFLOAT3 pos = m_dxCam.GetPositionFloat3();
+	dx::XMFLOAT3 rot = m_dxCam.GetRotationFloat3();
+	dx::XMMATRIX camWMatrix = dx::XMMatrixIdentity();
+	camWMatrix *=
+		dx::XMMatrixRotationRollPitchYaw(rot.x, rot.y, 0.0f) *
+		dx::XMMatrixTranslation(pos.x, pos.y, pos.z);
 
+	//Create frustum
+	dx::BoundingFrustum::CreateFromMatrix(frustum, m_dxCam.GetProjectionMatrix());
+	//Transform frustum into ws
+	frustum.Transform(frustum, camWMatrix);
+
+
+	// All the meshes to be drawn
+	std::vector< std::pair<std::string, dx::XMMATRIX> > finalDrawTargets = {};
+	// Get the culled meshes
+	for (auto& asset : m_assets)
+	{
+		finalDrawTargets = asset.second.FrustumCull(frustum);
+	}
+	// Add the moving meshes
+	for (auto& element : movingTargets)
+	{
+		finalDrawTargets.push_back(element);
+	}
+
+	// All the targets (used for shadows and mirror, which can have their own frustum)
+	std::vector< std::pair<std::string, dx::XMMATRIX> > allTargets = drawTargets;
+	for (auto& movable : movingTargets)
+	{
+		allTargets.push_back(movable);
+	}
+
+	// Update shadows before DCEM call
+	ShadowPass(allTargets);
+
+	// only runs when a mirror is present in the drawTargets
+	bool rendered = false;
+	for (auto & element : finalDrawTargets)
+	{
+		if (rendered)
+		{
+			break;
+		}
+		for (auto& asset : m_assets)
+		{
+			Mesh mesh;
+			if (asset.second.GetMesh(element.first, mesh))
+			{
+				for (auto& submesh : mesh.GetSubmeshMap())
+				{
+					if (submesh.second.textureId == DCEM_DEFAULT_TEX_NAME)
+					{
+						GenerateDCEM(allTargets);
+						rendered = true;
+						break;
+					}
+				}
+			}
+		}
+	}
+	// Final render for the frame
+	DrawDeferred(finalDrawTargets, window);
+#else
+	std::vector< std::pair<std::string, dx::XMMATRIX> > finalDrawTargets = drawTargets;
+	for (auto& element : movingTargets)
+	{
+		finalDrawTargets.push_back(element);
+	}
+	ShadowPass(finalDrawTargets);
+	GenerateDCEM(finalDrawTargets);
+	DrawDeferred(finalDrawTargets, window);
+#endif
 	m_swapChain->Present(1, 0);
 };

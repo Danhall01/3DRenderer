@@ -31,6 +31,9 @@
     <Filter Include="Resource Files\Misc">
       <UniqueIdentifier>{64ca592b-7a40-4c96-af43-17d3164204b5}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Resource Files\Classes">
+      <UniqueIdentifier>{c3a9d61c-8c40-4a42-beb3-4953b0fc8aa7}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -100,6 +103,9 @@
     </ClInclude>
     <ClInclude Include="wWindow.h">
       <Filter>Header Files\Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="quadTree.h">
+      <Filter>Resource Files\Classes</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

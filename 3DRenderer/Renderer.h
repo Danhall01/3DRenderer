@@ -51,9 +51,9 @@ public:
 	//Renderer manager
 	bool Build(wWindow window);
 	bool InitDCEM(std::string meshID, int height, int width);
+	void InitFrustumCulling(std::vector< std::pair<std::string, dx::XMMATRIX> >& drawTargets, float maxHeight, float minHeight, float multiplier);
 
-
-	void Render(std::vector< std::pair<std::string, dx::XMMATRIX> >& drawTargets, const wWindow& window);
+	void Render(const std::vector< std::pair<std::string, dx::XMMATRIX> >& drawTargets, const std::vector< std::pair<std::string, dx::XMMATRIX> >& movingTargets, const wWindow& window);
 private:
 	// Render Stages
 	bool UpdateLighting();

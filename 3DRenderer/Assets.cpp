@@ -71,6 +71,7 @@ static const std::map<std::string, CMDVal> s_CMD = {
 
 Assets::Assets() 
 {
+	// ######## Create default values ########
 	Image defaultClrImg = {};
 	Image lightImg = {};
 	//       width * height * channels
@@ -171,6 +172,38 @@ void Assets::Clear()
 }
 
 
+
+
+void Assets::BuildFrustumCulling(std::vector<std::pair<std::string, dx::XMMATRIX>>& drawTargets, float maxHeight, float minHeight, float multiplier)
+{
+	 //Init the tree structure
+	m_tree.Init(maxHeight, minHeight, multiplier);
+
+	//Recreate the drawtargetList to targets for the tree
+	for (auto& element : drawTargets)
+	{
+		dx::BoundingBox bBox = {};
+		m_boundedBoxes.at(element.first).Transform( bBox, element.second);
+
+		// Fill the tree with the new drawtargets
+		m_tree.AddElement(&element, bBox);
+	}
+
+}
+
+std::vector< std::pair<std::string, dx::XMMATRIX> > Assets::FrustumCull(dx::BoundingFrustum frustum) const
+{
+	std::vector< std::pair<std::string, dx::XMMATRIX> > toReturn;
+	for (auto& target : m_tree.CheckTree(frustum))
+	{
+		toReturn.push_back(*target);
+	}
+	return toReturn;
+}
+
+
+
+
 //Parser helper functions
 std::array<float, 3> Assets::MakeFXYZ(std::istringstream& pstream)
 {
@@ -194,6 +227,15 @@ void Assets::AddMesh(const std::string& meshID, Mesh& mesh)
 {
 	m_meshMap.try_emplace(meshID, mesh);
 }
+void Assets::AddBoundedBox(const std::string& meshID, const float smallestPoint[3], const float biggestPoint[3])
+{
+	dx::XMVECTOR Vsmall = { smallestPoint[0], smallestPoint[1], smallestPoint[2] };
+	dx::XMVECTOR VBig = { biggestPoint[0], biggestPoint[1], biggestPoint[2] };
+	dx::BoundingBox tempBox;
+	dx::BoundingBox::CreateFromPoints(tempBox, Vsmall, VBig);
+	m_boundedBoxes.try_emplace(meshID, tempBox);
+}
+
 inline void Assets::ParseMesh(Mesh& mesh,
 	const std::vector<std::string>& indiceStrVec,
 	const std::unordered_map<std::string, int>& indexCountMap,
@@ -266,6 +308,12 @@ bool Assets::ParseFromObjFile(std::string path, std::string filename, bool sever
 	Submesh submesh = {};
 	std::string currentSubmeshId = "default";
 
+#if FRUSTUM_CULLING
+	// Get the points
+	float smallestPos[3] = {1.0f};
+	float biggestPos[3] = {0.0f};
+#endif
+
 	// Data for the Parser, ensures no duplicates
 	std::unordered_map<std::string, int> indexCountMap;
 	int currentIndexSize = 0;
@@ -308,7 +356,15 @@ bool Assets::ParseFromObjFile(std::string path, std::string filename, bool sever
 					normalList,
 					uvList);
 				AddMesh(currentMeshId, mesh);
-
+#if FRUSTUM_CULLING
+				AddBoundedBox(currentMeshId, smallestPos, biggestPos);
+				// Reset points
+				for (int i = 0; i < 3; ++i)
+				{
+					smallestPos[i] = 1.0f;
+					biggestPos[i] = 0.0f;
+				}
+#endif
 				// Reset data
 				currentIndexSize = 0;
 
@@ -336,7 +392,15 @@ bool Assets::ParseFromObjFile(std::string path, std::string filename, bool sever
 
 		//Manage vertex data
 		case cmd_v:
-			posList.push_back(MakeFXYZ(pstream));
+			std::array<float, 3> coord = MakeFXYZ(pstream);
+#if FRUSTUM_CULLING
+			for (int i = 0; i < 3; ++i)
+			{
+				smallestPos[i] = min(smallestPos[i], coord[i]);
+				biggestPos[i] = max(biggestPos[i], coord[i]);
+			}
+#endif
+			posList.push_back(coord);
 			break;
 
 		case cmd_vt:
@@ -412,6 +476,9 @@ bool Assets::ParseFromObjFile(std::string path, std::string filename, bool sever
 			uvList);
 		AddMesh(currentMeshId, mesh);
 		//currentIndexSize = 0;
+#if FRUSTUM_CULLING
+		AddBoundedBox(currentMeshId, smallestPos, biggestPos);
+#endif
 	}
 
 	return file.eof();

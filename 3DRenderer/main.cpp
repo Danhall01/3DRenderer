@@ -11,7 +11,7 @@
 //Clock
 #include <chrono>
 using namespace std::chrono_literals;
-constexpr std::chrono::nanoseconds timeLock(208ms);
+constexpr std::chrono::nanoseconds timeLock(168ms);
 
 /// =============== Could be a class for input ===================
 //Gloabal variables for keybinds
@@ -158,27 +158,24 @@ int APIENTRY wWinMain(
 	std::string cube    = "cube";
 	std::string capsule = "capsule";
 
-
-	// Mesh 1
-	dx::XMMATRIX matrix = dx::XMMatrixIdentity();
-	drawable.push_back({ monkey, matrix});
-
-	//Mesh 2
+	//Mesh 1
 	dx::XMMATRIX floorMatrix = dx::XMMatrixIdentity();
 	floorMatrix *=
 		dx::XMMatrixScaling(45, 1, 45) *
 		dx::XMMatrixTranslation(0, -5, 0);
 	drawable.push_back({ floor, floorMatrix });
 
-	// Mesh 3
+	// Mesh 2
 	dx::XMMATRIX cubeMatrix = dx::XMMatrixTranslation(5, 1, 0);
 	drawable.push_back({ cube, cubeMatrix });
 
-	// Mesh 4
+	// Mesh 3
 	dx::XMMATRIX matrixCapsule = dx::XMMatrixIdentity();
 	//matrixCapsule *= dx::XMMatrixRotationY(60);
 	matrixCapsule *= dx::XMMatrixTranslation(0, 0, 5);
 	drawable.push_back({ capsule, matrixCapsule });
+
+
 
 
 	// ########## Dynamic Cubic Environment Mapping ##########
@@ -229,8 +226,30 @@ int APIENTRY wWinMain(
 		dx::XMMatrixTranslation(lightTest3.Position_Type[0], lightTest3.Position_Type[1] + 1, lightTest3.Position_Type[2]);
 	drawable.push_back({ cube, sunMatrix3 });
 
-	//########### SCENE END ################
+	//########### Lighting END ################
 
+#if RANDOM_CUBES
+// Spawn a random cube
+	if (drawable.size() < 100)
+	{
+		dx::XMMATRIX spawnableMatrix = dx::XMMatrixIdentity();
+		spawnableMatrix *= dx::XMMatrixTranslation(
+			static_cast<float>(rand() % 300),
+			static_cast<float>(rand() % 300),
+			static_cast<float>(rand() % 300));
+		drawable.push_back({ cube, spawnableMatrix });
+	}
+#endif
+#if FRUSTUM_CULLING
+	renderer.InitFrustumCulling(drawable, 20.0f, -20.0f, 300);
+#endif
+	// Moving meshes (ignored by frustum culling)
+	std::vector < std::pair<std::string, DirectX::XMMATRIX>> movable = {};
+	// Moving Mesh 1
+	dx::XMMATRIX matrix = dx::XMMatrixIdentity();
+	movable.push_back({ monkey, matrix });
+
+	//########### SCENE END ################
 
 
 	float iter = 0;
@@ -269,21 +288,7 @@ int APIENTRY wWinMain(
 					);
 				}
 			}
-
-#if RANDOM_CUBES
-			// Spawn a random cube
-			if (drawable.size() < 100)
-			{
-				dx::XMMATRIX spawnableMatrix = dx::XMMatrixIdentity();
-				spawnableMatrix *= dx::XMMatrixScaling(2.0f, 2.0f, 2.0f);
-				spawnableMatrix *= dx::XMMatrixTranslation(
-					static_cast<float>(rand() % 300), 
-					static_cast<float>(rand() % 300), 
-					static_cast<float>(rand() % 300));
-				drawable.push_back({ cube, spawnableMatrix });
-			}
-#endif
-			drawable[0].second = dx::XMMatrixRotationY( dx::XM_PI /180 * 90)
+			movable[0].second = dx::XMMatrixRotationY(dx::XM_PI / 180 * 90)
 				* dx::XMMatrixTranslation(-15, 0, 0)
 				* dx::XMMatrixRotationY(dx::XM_PI / 180 * 0.5f * iter);
 			iter++;
@@ -293,7 +298,9 @@ int APIENTRY wWinMain(
 
 			// #################### Render loop ##########################
 
-			renderer.Render(drawable, hWindow);
+
+			renderer.Render(drawable, movable, hWindow);
+
 			
 			// #################### Render loop ##########################
 
