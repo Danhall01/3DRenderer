@@ -228,7 +228,6 @@ int APIENTRY wWinMain(
 	drawable.push_back({ cube, sunMatrix2 });
 
 
-
 	Light lightTest3 = {};
 	lightTest3.Position_Type = { 0.0f, 15.0f, 0.0f, LIGHT_TYPE_DIRECTIONAL };
 	lightTest3.Color_Intensity = { 1.0f, 1.0f, 1.0f, 0.5f };
