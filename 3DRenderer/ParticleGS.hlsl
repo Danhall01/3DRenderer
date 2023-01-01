@@ -1,8 +1,7 @@
 cbuffer Camera : register(b0)
 {
     float4 camPosition;
-    matrix viewMatrix;
-    matrix projectionMatrix;
+    matrix vpMatrix;
 }
 
 struct VSOutput
@@ -16,9 +15,6 @@ void main(
 	inout TriangleStream<VSOutput> output
 )
 {
-    matrix vpMatrix = mul(viewMatrix, projectionMatrix);
-    
-    
     float3 upVec = float3(0.0f, 1.0f, 0.0f);
     float3 frontVec = normalize((camPosition.xyz - input[0])); // a - b = ba
     float3 rightVec = cross(frontVec, upVec); // Right hand rule: pekfinger(a), mittfinger(b), tumme(a X b) 

@@ -1012,7 +1012,7 @@ void Renderer::RenderDrawTargets(const Assets& currentAsset, const UINT& stride,
 			m_immediateContext->IASetIndexBuffer(m_indexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0);
 
 #if LOD
-			if (!UpdateLODCBuffer(mesh, 15.0f)) { infoDump((unsigned)__LINE__); return; }
+			if (!UpdateLODCBuffer(mesh, 32.0f)) { infoDump((unsigned)__LINE__); return; }
 			m_immediateContext->HSSetConstantBuffers(0, 1, m_LODCBuffer.GetAddressOf());
 			m_immediateContext->DSSetConstantBuffers(0, 1, m_vConstBuffer.GetAddressOf());
 #endif
@@ -1432,8 +1432,7 @@ bool Renderer::UpdateCameraCBuffer()
 	dx::XMFLOAT3 CamPos = m_dxCam.GetPositionFloat3();
 	CameraData data = {
 		{CamPos.x, CamPos.y, CamPos.z, 1.0f},
-		dx::XMMatrixTranspose(m_dxCam.GetViewMatrix()),
-		dx::XMMatrixTranspose(m_dxCam.GetProjectionMatrix())
+		dx::XMMatrixTranspose(m_dxCam.GetProjectionMatrix()) * dx::XMMatrixTranspose(m_dxCam.GetViewMatrix())
 	};
 
 	D3D11_MAPPED_SUBRESOURCE mResource = {};
@@ -1462,8 +1461,7 @@ bool Renderer::InitCameraCBuffer()
 	dx::XMFLOAT3 CamPos = m_dxCam.GetPositionFloat3();
 	CameraData data = {
 		{CamPos.x, CamPos.y, CamPos.z, 1.0f},
-		dx::XMMatrixTranspose(m_dxCam.GetViewMatrix()),
-		dx::XMMatrixTranspose(m_dxCam.GetProjectionMatrix())
+		dx::XMMatrixTranspose(m_dxCam.GetProjectionMatrix())* dx::XMMatrixTranspose(m_dxCam.GetViewMatrix())
 	};
 	D3D11_SUBRESOURCE_DATA subData = {};
 	subData.pSysMem          = &data;

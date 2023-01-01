@@ -127,8 +127,7 @@ struct LODCBufferData
 struct CameraData
 {
 	float position[4];
-	dx::XMMATRIX ViewMatrix;
-	dx::XMMATRIX ProjectionMatrix;
+	dx::XMMATRIX ViewProjectionMatrix;
 };
 
 
