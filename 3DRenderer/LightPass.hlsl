@@ -8,8 +8,8 @@
 sampler sState : register(s0);
 
 // Output
-RWTexture2D<float4> UAC : register(u0);
-RWTexture2DArray<float4> UAV : register(u1);
+RWTexture2D<float4> UAV : register(u0);
+RWTexture2DArray<float4> UAVA : register(u1);
 
 // Input
 Texture2D<float4> in_clr         : register(t0); // mapKa Ka
@@ -39,6 +39,10 @@ cbuffer lightingData : register(b0)
 Texture2DArray<float> in_shadowMap : register(t6);
 sampler shadowSampler : register(s1);
 
+// Particles
+Texture2D<float4> in_particles : register(t7);
+
+
 
 float3 lightCalc(uint index, float3 wsPos, float3 normal, float3 diffuseCLR, float3 specularCLR);
 bool HasShadow(uint index, float4 wsPos);
@@ -52,11 +56,17 @@ void main( uint3 threadID : SV_DispatchThreadID )
         threadID.y / (WINDOW_HEIGHT - 1.0f)
     );
     // Early return
+    float3 particle = in_particles.SampleLevel(sState, texcoord, 0).xyz;
+    if (particle.x + particle.y + particle.z != 0)
+    {
+        UAV[threadID.xy] = float4(particle, 1.0f);
+        return;
+    }
     float4 ambientClr = in_clr.SampleLevel(sState, texcoord, 0);
     if ( (ambientClr.r + ambientClr.g + ambientClr.b) == 0)
     {
-        UAC[threadID.xy] = float4(0.0f, 0.0f, 0.0f, 1.0f);
-        UAV[uint3(threadID.xy, 0)] = float4(0.0f, 0.0f, 0.0f, 1.0f);
+        UAV[threadID.xy] = float4(0.0f, 0.0f, 0.0f, 1.0f);
+        UAVA[uint3(threadID.xy, 0)] = float4(0.0f, 0.0f, 0.0f, 1.0f);
         return;
     }
     ambientClr.xyz *= in_clr.SampleLevel(sState, texcoord, 0).w;
@@ -70,6 +80,8 @@ void main( uint3 threadID : SV_DispatchThreadID )
     
     float3 diffuseClr  = Kd * in_diffuseClr.SampleLevel(sState, texcoord, 0).xyz;
     float3 specularClr = Ks * in_specularClr.SampleLevel(sState, texcoord, 0).xyz;
+    
+
     
     // Gather lighting
     float3 lighting = float3(0.0f, 0.0f, 0.0f);
@@ -85,11 +97,11 @@ void main( uint3 threadID : SV_DispatchThreadID )
     
     float3 baseClr = ambientClr.xyz;
     float ambientModifier = 0.5f;
-    UAC[threadID.xy] = saturate(float4(
+    UAV[threadID.xy] = saturate(float4(
         baseClr * ambientModifier + lighting,
         1.0f
     ));
-    UAV[uint3(threadID.xy, 0)] = saturate(float4(
+    UAVA[uint3(threadID.xy, 0)] = saturate(float4(
         baseClr + lighting,
         1.0f
     ));

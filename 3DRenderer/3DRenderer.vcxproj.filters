@@ -34,6 +34,18 @@
     <Filter Include="Resource Files\Classes">
       <UniqueIdentifier>{c3a9d61c-8c40-4a42-beb3-4953b0fc8aa7}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Resource Files\Shaders\Deferred">
+      <UniqueIdentifier>{ac8592ee-d8a9-43d2-b462-ad8c2274233b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Resource Files\Shaders\Shadows">
+      <UniqueIdentifier>{f3561f68-254f-4ace-be80-a028464b50ca}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Resource Files\Shaders\Level of Detail">
+      <UniqueIdentifier>{9c1f8709-ebe6-49ff-8a2e-52b131e350f1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Resource Files\Shaders\Particles">
+      <UniqueIdentifier>{cf47a49d-7717-44b9-90c9-f6540cf0fdc3}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -61,6 +73,9 @@
       <Filter>Source Files\Asset</Filter>
     </ClCompile>
     <ClCompile Include="DCEMAsset.cpp">
+      <Filter>Source Files\Asset</Filter>
+    </ClCompile>
+    <ClCompile Include="Particle.cpp">
       <Filter>Source Files\Asset</Filter>
     </ClCompile>
   </ItemGroup>
@@ -107,25 +122,40 @@
     <ClInclude Include="quadTree.h">
       <Filter>Resource Files\Classes</Filter>
     </ClInclude>
+    <ClInclude Include="Particle.h">
+      <Filter>Header Files\Asset</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="VertexShaderDeferred.hlsl">
-      <Filter>Resource Files\Shaders</Filter>
+    <FxCompile Include="LightPass.hlsl">
+      <Filter>Resource Files\Shaders\Deferred</Filter>
     </FxCompile>
     <FxCompile Include="PixelShaderDeferred.hlsl">
-      <Filter>Resource Files\Shaders</Filter>
+      <Filter>Resource Files\Shaders\Deferred</Filter>
     </FxCompile>
-    <FxCompile Include="LightPass.hlsl">
-      <Filter>Resource Files\Shaders</Filter>
+    <FxCompile Include="VertexShaderDeferred.hlsl">
+      <Filter>Resource Files\Shaders\Deferred</Filter>
     </FxCompile>
     <FxCompile Include="ShadowPassVS.hlsl">
-      <Filter>Resource Files\Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="LODHullShader.hlsl">
-      <Filter>Resource Files\Shaders</Filter>
+      <Filter>Resource Files\Shaders\Shadows</Filter>
     </FxCompile>
     <FxCompile Include="LODDomainShader.hlsl">
-      <Filter>Resource Files\Shaders</Filter>
+      <Filter>Resource Files\Shaders\Level of Detail</Filter>
+    </FxCompile>
+    <FxCompile Include="LODHullShader.hlsl">
+      <Filter>Resource Files\Shaders\Level of Detail</Filter>
+    </FxCompile>
+    <FxCompile Include="ParticleCS.hlsl">
+      <Filter>Resource Files\Shaders\Particles</Filter>
+    </FxCompile>
+    <FxCompile Include="ParticleGS.hlsl">
+      <Filter>Resource Files\Shaders\Particles</Filter>
+    </FxCompile>
+    <FxCompile Include="ParticlePS.hlsl">
+      <Filter>Resource Files\Shaders\Particles</Filter>
+    </FxCompile>
+    <FxCompile Include="ParticleVS.hlsl">
+      <Filter>Resource Files\Shaders\Particles</Filter>
     </FxCompile>
   </ItemGroup>
 </Project>

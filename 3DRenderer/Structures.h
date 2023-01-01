@@ -124,6 +124,13 @@ struct LODCBufferData
 	float MeshPos[4];
 	float TesFactor[4];
 };
+struct CameraData
+{
+	float position[4];
+	dx::XMMATRIX ViewMatrix;
+	dx::XMMATRIX ProjectionMatrix;
+};
+
 
 enum lightType
 {

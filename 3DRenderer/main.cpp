@@ -194,18 +194,20 @@ int APIENTRY wWinMain(
 
 	std::string DCEMShowcase = "mirror";
 	dx::XMMATRIX DCEMMatrix = dx::XMMatrixIdentity();
+	DCEMMatrix *= dx::XMMatrixTranslation(0, 0, 0);
 
 
 	renderer.InitDCEM(DCEMShowcase, 400, 400);
 	drawable.push_back({ DCEMShowcase, DCEMMatrix });
 	
 	// ########## Lighting ##########
+	float shadowIndex = 0;
 
 	Light lightTest = {};
 	lightTest.Position_Type   = { 4.0f, 5.0f, 0.0f, LIGHT_TYPE_SPOTLIGHT };
 	lightTest.Color_Intensity = { 0.7275f, 0.1412f, 0.2314f, 0.5f };
 	lightTest.Direction_Range = { 0.0f, -1.0f, 0.0f, 50.0f};
-	lightTest.CosOuter_Inner_SMap_count = { 0.7071f, 0.92f, 1.0f, 0.0f };
+	lightTest.CosOuter_Inner_SMap_count = { 0.7071f, 0.92f, 1.0f, shadowIndex++ };
 	renderer.AddShadowLight(lightTest, hWindow);
 
 	dx::XMMATRIX sunMatrix = dx::XMMatrixScaling(0.1f, 0.1f, 0.1f) *
@@ -215,10 +217,10 @@ int APIENTRY wWinMain(
 
 
 	Light lightTest2 = {};
-	lightTest2.Position_Type = { -15.0f, 5.0f, 0.0f, LIGHT_TYPE_SPOTLIGHT };
+	lightTest2.Position_Type = { 15.0f, 5.0f, 0.0f, LIGHT_TYPE_SPOTLIGHT };
 	lightTest2.Color_Intensity = { 0.3f, 0.8f, 0.2f, 1.5f };
 	lightTest2.Direction_Range = { 0.0f, -1.0f, 0.0f, 20.0f };
-	lightTest2.CosOuter_Inner_SMap_count = { 0.7071f, 0.92f, 1.0f, 1.0f};
+	lightTest2.CosOuter_Inner_SMap_count = { 0.7071f, 0.92f, 1.0f, shadowIndex++ };
 	renderer.AddShadowLight(lightTest2, hWindow);
 
 	dx::XMMATRIX sunMatrix2 = dx::XMMatrixScaling(0.1f, 0.1f, 0.1f) *
@@ -231,7 +233,7 @@ int APIENTRY wWinMain(
 	lightTest3.Position_Type = { 0.0f, 15.0f, 0.0f, LIGHT_TYPE_DIRECTIONAL };
 	lightTest3.Color_Intensity = { 1.0f, 1.0f, 1.0f, 0.5f };
 	lightTest3.Direction_Range = { 0.0f, -1.0f, 0.0f, 20.0f };
-	lightTest3.CosOuter_Inner_SMap_count = { 0.0f, 0.0f, 1.0f, 2.0f };
+	lightTest3.CosOuter_Inner_SMap_count = { 0.0f, 0.0f, 1.0f, shadowIndex++ };
 	renderer.AddShadowLight(lightTest3, hWindow);
 
 	dx::XMMATRIX sunMatrix3 = dx::XMMatrixScaling(0.1f, 0.1f, 0.1f) *
@@ -239,7 +241,17 @@ int APIENTRY wWinMain(
 	drawable.push_back({ cube, sunMatrix3 });
 
 
-	// ######### Frustum Culling ############
+	Light lightTest4 = {};
+	lightTest4.Position_Type = { -15.0f, 5.0f, 0.0f, LIGHT_TYPE_SPOTLIGHT };
+	lightTest4.Color_Intensity = { 0.8275f, 0.8412f, 0.8314f, 1.5f };
+	lightTest4.Direction_Range = { 0.0f, -1.0f, 0.0f, 50.0f };
+	lightTest4.CosOuter_Inner_SMap_count = { 0.7071f, 0.92f, 1.0f, shadowIndex++ };
+	renderer.AddShadowLight(lightTest4, hWindow);
+
+	dx::XMMATRIX sunMatrix4 = dx::XMMatrixScaling(0.1f, 0.1f, 0.1f) *
+		dx::XMMatrixTranslation(lightTest4.Position_Type[0], lightTest4.Position_Type[1] -5, lightTest4.Position_Type[2]);
+	drawable.push_back({ cube, sunMatrix4 });
+	// ############ Frustum Culling ############
 
 #if FRUSTUM_CULLING
 	renderer.InitFrustumCulling(drawable, 155.0f, -155.0f, 300);
@@ -249,6 +261,27 @@ int APIENTRY wWinMain(
 	// Moving Mesh 1
 	dx::XMMATRIX matrix = dx::XMMatrixIdentity();
 	movable.push_back({ monkey, matrix });
+
+
+	// ############ Particles ############
+
+	std::vector<ParticleData> particles;
+
+
+	particles.push_back({ {-5.0f, 0.0f, 4.0f} });
+	particles.push_back({ {-5.0f, 1.0f, 3.0f} });
+	particles.push_back({ {-5.0f, 2.0f, 2.0f} });
+	particles.push_back({ {-5.0f, 3.0f, 1.0f} });
+	particles.push_back({ {-5.0f, 4.0f, 0.0f} });
+	particles.push_back({ {-5.0f, 0.0f, -1.0f} });
+	particles.push_back({ {-5.0f, 1.0f, -2.0f} });
+	particles.push_back({ {-5.0f, 2.0f, -3.0f} });
+	particles.push_back({ {-5.0f, 3.0f, -4.0f} });
+
+
+
+	if (!renderer.InitParticles(particles, hWindow))
+		return 1;
 
 	//########### SCENE END ################
 

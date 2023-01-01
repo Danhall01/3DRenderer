@@ -162,6 +162,9 @@ void Camera::UpdateViewMatrixRoll()
             dx::XMMatrixRotationRollPitchYaw(m_rotation.x, m_rotation.y, m_rotation.z)
         );
 
+    //Transform the up vector here
+
+
     const dx::XMVECTOR pos = dx::XMLoadFloat3(&m_position);
     const dx::XMVECTOR target = dx::XMVectorAdd(pos, lookatVector);
     m_viewMatrix = dx::XMMatrixLookAtLH(pos, target, {0.0f, -1.0f, 0.0f});

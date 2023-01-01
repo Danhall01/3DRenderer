@@ -12,6 +12,7 @@ constexpr auto BYTEWIDTH_LIGHT_MAX = sizeof(Light) * LIGHT_MAX_COUNT;
 
 #include <assert.h>
 #include <comdef.h>
+#include <cmath>
 
 #include "enables.h"
 
@@ -121,9 +122,6 @@ bool Renderer::Build(wWindow window)
 	//Lighting
 	if (!BuildLightBuffer())                    { infoDump((unsigned)__LINE__); return false; }
 	if (!BuildShadowPass(shaderBlob, window))   { infoDump((unsigned)__LINE__); return false; }
-
-
-
 
 	shaderBlob->Release();
 	return true;
@@ -269,7 +267,7 @@ bool Renderer::UpdateVertexConstantBuffer(const Mesh& mesh)
 
 	return true;
 }
-bool Renderer::UpdateVertexConstantBuffer(dx::XMMATRIX& matrix)
+bool Renderer::UpdateVertexConstantBuffer(const dx::XMMATRIX& matrix)
 {
 	dx::XMVECTOR det = dx::XMMatrixDeterminant(matrix);
 	WVPMatrix wvpMatrix = {
@@ -296,7 +294,7 @@ bool Renderer::UpdateVertexConstantBuffer(dx::XMMATRIX& matrix)
 
 	return true;
 }
-bool Renderer::UpdateVertexConstantBuffer(dx::XMMATRIX& modelView, const Camera& cam)
+bool Renderer::UpdateVertexConstantBuffer(const dx::XMMATRIX& modelView, const Camera& cam)
 {
 	dx::XMVECTOR det = dx::XMMatrixDeterminant(modelView);
 	WVPMatrix wvpMatrix = {
@@ -936,7 +934,6 @@ bool Renderer::SetMeshMatrix(std::string id, const dx::XMMATRIX& matrix)
 // Deferred Rendering
 void Renderer::DrawDeferred(std::vector< std::pair<std::string, dx::XMMATRIX> >& drawTargets, const wWindow& window)
 {
-	ClearBuffer();
 	UINT stride = sizeof(Vertex);
 	UINT offset = 0;
 
@@ -980,6 +977,10 @@ void Renderer::DrawDeferred(std::vector< std::pair<std::string, dx::XMMATRIX> >&
 	m_immediateContext->CSSetSamplers(0, 1, m_samplerState.GetAddressOf());
 	m_immediateContext->CSSetUnorderedAccessViews(0, 1, m_uav[0].GetAddressOf(), 0);
 	m_immediateContext->CSSetShaderResources(0, (BUFFER_COUNT + 1), m_deferredSRVInput[0].GetAddressOf());
+	if (m_particleManager.IsInitialized()) 
+	{
+		m_immediateContext->CSSetShaderResources((BUFFER_COUNT + 2), 1, m_particleSRV.GetAddressOf());
+	}
 	m_immediateContext->CSSetConstantBuffers(0, 1, m_lightCount.GetAddressOf());
 
 
@@ -1219,11 +1220,12 @@ bool Renderer::UpdateDCEMCBuffer(int enabled)
 
 	return SUCCEEDED(m_hr);
 }
-void Renderer::GenerateDCEM(std::vector<std::pair<std::string, dx::XMMATRIX>>& drawTargets)
+void Renderer::GenerateDCEM(const std::vector<std::pair<std::string, dx::XMMATRIX>>& drawTargets)
 {
 	// Ensure the texture cub is not set as a read resource
 	ID3D11ShaderResourceView* nullSRV = nullptr;
 	m_immediateContext->PSSetShaderResources(3, 1, &nullSRV);
+
 
 	float bgColor[4] = { 0.0f, 0.0f, 0.0f, 0 };
 	for (int i = 0; i < 6; ++i)
@@ -1242,7 +1244,7 @@ void Renderer::GenerateDCEM(std::vector<std::pair<std::string, dx::XMMATRIX>>& d
 	ID3D11UnorderedAccessView* nullUAV = nullptr;
 	m_immediateContext->CSSetUnorderedAccessViews(1, 1, &nullUAV, 0);
 }
-void Renderer::RenderDCEMPass(std::vector< std::pair<std::string, dx::XMMATRIX> >& drawTargets, const Camera& cam, ID3D11UnorderedAccessView* uav, ID3D11DepthStencilView* dsv, D3D11_VIEWPORT viewport)
+void Renderer::RenderDCEMPass(const std::vector< std::pair<std::string, dx::XMMATRIX> >& drawTargets, const Camera& cam, ID3D11UnorderedAccessView* uav, ID3D11DepthStencilView* dsv, D3D11_VIEWPORT viewport)
 {
 	ClearBuffer();
 	UINT stride = sizeof(Vertex);
@@ -1383,6 +1385,26 @@ void Renderer::RenderDCEMPass(std::vector< std::pair<std::string, dx::XMMATRIX> 
 		1);
 }
 
+dx::BoundingFrustum Renderer::CreateFrustum(const Camera& cam)
+{
+	// Update the self draw vector
+	dx::BoundingFrustum frustum;
+	dx::XMFLOAT3 pos = m_dxCam.GetPositionFloat3();
+	dx::XMFLOAT3 rot = m_dxCam.GetRotationFloat3();
+	dx::XMMATRIX camWMatrix = dx::XMMatrixIdentity();
+	camWMatrix *=
+		dx::XMMatrixRotationRollPitchYaw(rot.x, rot.y, 0.0f) *
+		dx::XMMatrixTranslation(pos.x, pos.y, pos.z);
+
+	//Create frustum
+	dx::BoundingFrustum::CreateFromMatrix(frustum, m_dxCam.GetProjectionMatrix());
+	//Transform frustum into ws
+	frustum.Transform(frustum, camWMatrix);
+	return frustum;
+}
+
+
+
 // Frustum culling
 void Renderer::InitFrustumCulling(std::vector< std::pair<std::string, dx::XMMATRIX> >& drawTargets, float maxHeight, float minHeight, float multiplier)
 {
@@ -1393,6 +1415,171 @@ void Renderer::InitFrustumCulling(std::vector< std::pair<std::string, dx::XMMATR
 	}
 	return;
 }
+
+
+// Particles
+bool Renderer::InitParticles(std::vector<ParticleData>& data, const wWindow& window)
+{
+	if(!InitCameraCBuffer()) { infoDump((unsigned)__LINE__); return false; }
+	if(!BuildParticleTexture(window)) { infoDump((unsigned)__LINE__); return false; }
+	m_hr = m_particleManager.Init(m_device.Get(), data, data.size());
+	if (FAILED(m_hr))
+		infoDump((unsigned)__LINE__);
+	return SUCCEEDED(m_hr);
+}
+bool Renderer::UpdateCameraCBuffer()
+{
+	dx::XMFLOAT3 CamPos = m_dxCam.GetPositionFloat3();
+	CameraData data = {
+		{CamPos.x, CamPos.y, CamPos.z, 1.0f},
+		dx::XMMatrixTranspose(m_dxCam.GetViewMatrix()),
+		dx::XMMatrixTranspose(m_dxCam.GetProjectionMatrix())
+	};
+
+	D3D11_MAPPED_SUBRESOURCE mResource = {};
+	m_hr = m_immediateContext->Map(m_CameraCBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mResource);
+	memcpy(
+		mResource.pData,
+		&data,
+		sizeof(data)
+	);
+
+	m_immediateContext->Unmap(m_CameraCBuffer.Get(), 0);
+
+	return SUCCEEDED(m_hr);
+}
+bool Renderer::InitCameraCBuffer()
+{
+	/// Vertex CBuffer
+	D3D11_BUFFER_DESC Desc = {};
+	Desc.Usage               = D3D11_USAGE_DYNAMIC;
+	Desc.BindFlags           = D3D11_BIND_CONSTANT_BUFFER;
+	Desc.CPUAccessFlags      = D3D11_CPU_ACCESS_WRITE;
+	Desc.ByteWidth           = sizeof(CameraData);
+	Desc.StructureByteStride = 0;
+	Desc.MiscFlags           = 0;
+
+	dx::XMFLOAT3 CamPos = m_dxCam.GetPositionFloat3();
+	CameraData data = {
+		{CamPos.x, CamPos.y, CamPos.z, 1.0f},
+		dx::XMMatrixTranspose(m_dxCam.GetViewMatrix()),
+		dx::XMMatrixTranspose(m_dxCam.GetProjectionMatrix())
+	};
+	D3D11_SUBRESOURCE_DATA subData = {};
+	subData.pSysMem          = &data;
+	subData.SysMemPitch      = 0;
+	subData.SysMemSlicePitch = 0;
+
+	m_hr = m_device->CreateBuffer(
+		&Desc,
+		&subData,
+		m_CameraCBuffer.GetAddressOf()
+	);
+	return SUCCEEDED(m_hr);
+}
+bool Renderer::BuildParticleTexture(const wWindow& window)
+{
+	// Texture
+	D3D11_TEXTURE2D_DESC textureDesc = {};
+	textureDesc.Width              = static_cast<UINT>(window.GetWindowWidth());
+	textureDesc.Height             = static_cast<UINT>(window.GetWindowHeight());
+	textureDesc.MipLevels          = 1;
+	textureDesc.ArraySize          = 1;
+	textureDesc.Format             = DXGI_FORMAT_R32G32B32A32_FLOAT;
+	textureDesc.SampleDesc.Count   = 1;
+	textureDesc.SampleDesc.Quality = 0;
+	textureDesc.Usage              = D3D11_USAGE_DEFAULT;
+	textureDesc.BindFlags          = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+
+	m_hr = m_device->CreateTexture2D(
+		&textureDesc,
+		NULL,
+		m_particleTexture.GetAddressOf());
+	if (FAILED(m_hr))
+		return false;
+
+
+	// RenderTargetView
+	D3D11_RENDER_TARGET_VIEW_DESC rtvDesc = {};
+	rtvDesc.Format        = textureDesc.Format;
+	rtvDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+
+	m_hr = m_device->CreateRenderTargetView(
+		m_particleTexture.Get(),
+		&rtvDesc,
+		m_particleRTV.GetAddressOf());
+	if (FAILED(m_hr))
+		return false;
+
+
+	// ShaderResourceView
+	D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+	srvDesc.Format              = textureDesc.Format;
+	srvDesc.ViewDimension       = D3D11_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Texture2D.MipLevels = 1;
+
+	m_hr = m_device->CreateShaderResourceView(
+		m_particleTexture.Get(),
+		&srvDesc,
+		m_particleSRV.GetAddressOf());
+	if (FAILED(m_hr))
+		return false;
+
+	return SUCCEEDED(m_hr);
+}
+void Renderer::RenderParticles()
+{
+	// Clean RTV for use
+	float bgColor[4] = { 0.0f, 0.0f, 0.0f, 0 };
+	m_immediateContext->ClearRenderTargetView(m_particleRTV.Get(), bgColor);
+
+	ID3D11ShaderResourceView* nullSRV = nullptr;
+	m_immediateContext->CSSetShaderResources((BUFFER_COUNT + 2), 1, &nullSRV);
+
+
+	// Update the particles in the compute shader
+	m_immediateContext->CSSetShader(m_particleManager.GetComputeShaderP(), nullptr, 0);
+	m_immediateContext->CSSetUnorderedAccessViews(0, 1, m_particleManager.GetUAVPP(), 0);
+	m_immediateContext->Dispatch( std::ceil(m_particleManager.Count() / 32.0f), 1, 1);
+
+	ID3D11UnorderedAccessView* nullUAV = nullptr;
+	m_immediateContext->CSSetUnorderedAccessViews(0, 1, &nullUAV, nullptr);
+
+
+	//Clean old shaders
+	m_immediateContext->VSSetShader(nullptr, nullptr, 0);
+	m_immediateContext->HSSetShader(nullptr, nullptr, 0);
+	m_immediateContext->DSSetShader(nullptr, nullptr, 0);
+	m_immediateContext->GSSetShader(nullptr, nullptr, 0);
+	m_immediateContext->PSSetShader(nullptr, nullptr, 0);
+
+
+	// Draw the particles
+	m_immediateContext->IASetInputLayout(nullptr);
+	m_immediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
+
+	m_immediateContext->VSSetShader(m_particleManager.GetVertexShaderP(), nullptr, 0);
+	m_immediateContext->VSSetShaderResources(0, 1, m_particleManager.GetSRVPP());
+
+	m_immediateContext->GSSetShader(m_particleManager.GetGeometryShaderP(), nullptr, 0);
+	UpdateCameraCBuffer();
+	m_immediateContext->GSSetConstantBuffers(0, 1, m_CameraCBuffer.GetAddressOf());
+
+	m_immediateContext->RSSetViewports(1, &m_viewport);
+
+	m_immediateContext->PSSetShader(m_particleManager.GetPixelShaderP(), nullptr, 0);
+
+	m_immediateContext->OMSetRenderTargets(1, m_particleRTV.GetAddressOf(), m_dsv.Get());
+
+	m_immediateContext->Draw(m_particleManager.Count(), 0);
+
+	// Cleanup
+	m_immediateContext->GSSetShader(nullptr, nullptr, 0);
+	m_immediateContext->VSSetShaderResources(0, 1, &nullSRV);
+	m_immediateContext->OMSetRenderTargets(0, nullptr, nullptr);
+}
+
+
 
 
 void Renderer::ClearBuffer()
@@ -1480,29 +1667,17 @@ void Renderer::Render(const std::vector< std::pair<std::string, dx::XMMATRIX> >&
 {
 	// Normal Rendering presudure
 	UpdateLighting();
-	
+	if (m_particleManager.IsInitialized())
+	{
+		RenderParticles();
+	}
 #if FRUSTUM_CULLING
-	// Update the self draw vector
-	dx::BoundingFrustum frustum;
-	dx::XMFLOAT3 pos = m_dxCam.GetPositionFloat3();
-	dx::XMFLOAT3 rot = m_dxCam.GetRotationFloat3();
-	dx::XMMATRIX camWMatrix = dx::XMMatrixIdentity();
-	camWMatrix *=
-		dx::XMMatrixRotationRollPitchYaw(rot.x, rot.y, 0.0f) *
-		dx::XMMatrixTranslation(pos.x, pos.y, pos.z);
-
-	//Create frustum
-	dx::BoundingFrustum::CreateFromMatrix(frustum, m_dxCam.GetProjectionMatrix());
-	//Transform frustum into ws
-	frustum.Transform(frustum, camWMatrix);
-
-
 	// All the meshes to be drawn
 	std::vector< std::pair<std::string, dx::XMMATRIX> > finalDrawTargets = {};
 	// Get the culled meshes
 	for (auto& asset : m_assets)
 	{
-		finalDrawTargets = asset.second.FrustumCull(frustum);
+		finalDrawTargets = asset.second.FrustumCull(CreateFrustum(m_dxCam));
 	}
 	// Add the moving meshes
 	for (auto& element : movingTargets)
@@ -1546,6 +1721,7 @@ void Renderer::Render(const std::vector< std::pair<std::string, dx::XMMATRIX> >&
 		}
 	}
 	// Final render for the frame
+	ClearBuffer();
 	DrawDeferred(finalDrawTargets, window);
 #else
 	std::vector< std::pair<std::string, dx::XMMATRIX> > finalDrawTargets = drawTargets;
@@ -1555,6 +1731,7 @@ void Renderer::Render(const std::vector< std::pair<std::string, dx::XMMATRIX> >&
 	}
 	ShadowPass(finalDrawTargets);
 	GenerateDCEM(finalDrawTargets);
+	ClearBuffer();
 	DrawDeferred(finalDrawTargets, window);
 #endif
 	m_swapChain->Present(1, 0);

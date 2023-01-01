@@ -5,6 +5,7 @@
 #include "Assets.h"
 #include "ShadowLight.h"
 #include "DCEMAsset.h"
+#include "Particle.h"
 // The API
 #include <d3d11.h>
 // Other libraries
@@ -53,6 +54,7 @@ public:
 	bool Build(wWindow window);
 	bool InitDCEM(std::string meshID, int height, int width);
 	void InitFrustumCulling(std::vector< std::pair<std::string, dx::XMMATRIX> >& drawTargets, float maxHeight, float minHeight, float multiplier);
+	bool InitParticles(std::vector<ParticleData>& data, const wWindow& window);
 
 	void Render(const std::vector< std::pair<std::string, dx::XMMATRIX> >& drawTargets, const std::vector< std::pair<std::string, dx::XMMATRIX> >& movingTargets, const wWindow& window);
 private:
@@ -60,7 +62,7 @@ private:
 	bool UpdateLighting();
 	void DrawDeferred(std::vector< std::pair<std::string, dx::XMMATRIX> >& drawTargets, const wWindow& window);
 	void ShadowPass(std::vector< std::pair<std::string, dx::XMMATRIX> >& drawTargets);
-	void GenerateDCEM(std::vector< std::pair<std::string, dx::XMMATRIX> >& drawTargets);
+	void GenerateDCEM(const std::vector< std::pair<std::string, dx::XMMATRIX> >& drawTargets);
 
 
 	// Renderer Helper Functions
@@ -97,8 +99,8 @@ private:
 	// Mesh Helper Functions
 	bool BuildVertexConstantBuffer();
 	bool UpdateVertexConstantBuffer(const Mesh& mesh);
-	bool UpdateVertexConstantBuffer(dx::XMMATRIX& matrix);
-	bool UpdateVertexConstantBuffer(dx::XMMATRIX& modelView, const Camera& cam);
+	bool UpdateVertexConstantBuffer(const dx::XMMATRIX& matrix);
+	bool UpdateVertexConstantBuffer(const dx::XMMATRIX& modelView, const Camera& cam);
 
 
 	// Texture Helper Functions
@@ -115,8 +117,17 @@ private:
 
 	// DCEM Helper Functions
 	bool UpdateDCEMCBuffer(int enabled);
-	void RenderDCEMPass(std::vector< std::pair<std::string, dx::XMMATRIX> >& drawTargets, const Camera& cam, ID3D11UnorderedAccessView* rtv, ID3D11DepthStencilView* dsv, D3D11_VIEWPORT viewport);
+	void RenderDCEMPass(const std::vector< std::pair<std::string, dx::XMMATRIX> >& drawTargets, const Camera& cam, ID3D11UnorderedAccessView* rtv, ID3D11DepthStencilView* dsv, D3D11_VIEWPORT viewport);
 
+	// Frustum culling helper
+	dx::BoundingFrustum CreateFrustum(const Camera& cam);
+
+	// Particles Functions
+	void RenderParticles();
+	bool UpdateCameraCBuffer();
+	bool InitCameraCBuffer();
+	bool BuildParticleTexture(const wWindow& window);
+	
 	// Image Helper functions
 	bool UpdateImageMap();
 private:
@@ -184,4 +195,11 @@ private: //D3D11 VARIABLES
 	// Mirror
 	DCEMAsset											m_CMManager;
 	WRL::ComPtr<ID3D11Buffer>							m_CMCBuffer;
+
+	// Particle
+	Particle											m_particleManager;
+	WRL::ComPtr<ID3D11Texture2D>						m_particleTexture;
+	WRL::ComPtr<ID3D11RenderTargetView>					m_particleRTV;
+	WRL::ComPtr<ID3D11ShaderResourceView>				m_particleSRV;
+	WRL::ComPtr<ID3D11Buffer>							m_CameraCBuffer;
 };
